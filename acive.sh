@@ -1,4 +1,4 @@
-#!bin/bash
+#!/bin/bash
 sudo apt update
 sudo apt install python python3-venv python3-pip -y
 mkdir inzynier
