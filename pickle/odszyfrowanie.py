@@ -17,6 +17,7 @@ buffer = zlib.decompress(compressed_data)
 print(buffer)
 # Odszyfrowanie XOR (zamiana danych binarnych na int)
 xor = int.from_bytes(buffer, byteorder="big")
+print(xor)
 
 # Klucz do XOR
 key = "wojtek"
