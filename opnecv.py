@@ -3,12 +3,29 @@ from kivy.uix.image import Image
 from kivy.clock import Clock
 from kivy.graphics.texture import Texture
 import cv2
-
+from kivy.uix.boxlayout import BoxLayout
+from kivy.uix.label import Label
+from kivy.core.window import Window
+# noinspection PyInterpreter
 class CameraApp(App):
     def build(self):
+        # Ustawienia okna
+        Window.size = (1200, 800)
+
+        screen_w = Window.system_size[0]
+        screen_h = Window.system_size[1]
+
+        window_x = (screen_w - Window.size[0]) // 2
+        window_y = (screen_h - Window.size[1]) // 2
+        Window.top = window_y
+        Window.left = window_x
+
+        root = BoxLayout(orientation='vertical',spacing=10, padding=10)
+
         self.img_widget = Image()
         self.capture = cv2.VideoCapture(0)  # 0 oznacza pierwszą kamerę podłączoną do systemu
         Clock.schedule_interval(self.update_frame, 1.0 / 30.0)  # 30 FPS
+
         return self.img_widget
 
     def update_frame(self, dt):
