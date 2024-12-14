@@ -1,51 +1,38 @@
-import hashlib
-import pickle
-import zlib
-from cryptography.fernet import Fernet
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from os import urandom
 
-# Tworzenie klucza (robi się raz)
-key1 = b'tGdYBJ0zcTDnrSgn8VdwtBlr2zDKUoMA3G9uXMHlBO8='
-cipher_suite = Fernet(key1)
 
-# Dane wejściowe
-data = b"Pomocy"  # Musi być typu bytes
-key = "wojtek"
+def encrypt_data(data: bytes) -> tuple:
+    """
+    Szyfruje dane za pomocą AES w trybie CBC.
 
-# Tworzenie hasha z danych
-objecthash = hashlib.sha256(data)  # Hashowanie danych binarnych
-data_hash_hex = objecthash.hexdigest()
+    Args:
+        data (bytes): Dane do zaszyfrowania w formacie bajtów.
 
-# Konwersja hash na liczbę całkowitą
-dataint = int(data_hash_hex, 16)
+    Returns:
+        tuple: Zaszyfrowane dane, klucz AES, wektor IV.
+    """
+    key = urandom(32)  # 256-bitowy klucz
+    iv = urandom(16)  # 128-bitowy wektor inicjalizujący (IV)
 
-# Konwersja klucza na liczbę całkowitą
-keyint = int.from_bytes(key.encode(), byteorder="big")
+    # Tworzenie szyfratora
+    cipher = Cipher(algorithms.AES(key), modes.CBC(iv))
+    encryptor = cipher.encryptor()
 
-# Szyfrowanie XOR
-resultat = dataint ^ keyint
-resultat =resultat.bit_length()
-resultat = (resultat + 7) // 8
-nowe = resultat.to_bytes(byteorder='big')
-
-# Tworzenie buffera z szyfrowaniem i "zipem"
-def new_buffer(buffer):
-    print("OOB Data:", buffer)
-
-    # Kompresowanie danych
-    compressed_data = zlib.compress(buffer)
+    # Padding do wielokrotności bloku (16 bajtów)
+    padding_length = 16 - (len(data) % 16)
+    padded_data = data + bytes([padding_length]) * padding_length
 
     # Szyfrowanie danych
-    encrypted_data = cipher_suite.encrypt(compressed_data)
+    ciphertext = encryptor.update(padded_data) + encryptor.finalize()
 
-    # Logowanie skompresowanych i zaszyfrowanych danych
-    print(f"OOB Data (compressed & encrypted): {encrypted_data}")
+    return ciphertext, key, iv
 
-    # Zapisywanie zaszyfrowanych danych do pliku
-    with open("compressed_encrypted_data.bin", "ab") as f:
-        f.write(encrypted_data)
 
-# Serializacja danych z obsługą bufora
-with open("out_of_band_data.pkl", "wb") as file:
-      pickle.dump(nowe, file, protocol=5, buffer_callback=new_buffer(nowe))
-
-print("Klucz szyfrowania:", key1)
+# Przykład użycia
+if __name__ == "__main__":
+    data = b"Secret data in bytes"
+    encrypted_data, aes_key, aes_iv = encrypt_data(data)
+    print("Zaszyfrowane dane:", encrypted_data)
+    print("Klucz AES:", aes_key)
+    print("IV:", aes_iv)

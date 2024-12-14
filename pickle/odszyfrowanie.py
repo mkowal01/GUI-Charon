@@ -1,34 +1,38 @@
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 
-key1 = b'tGdYBJ0zcTDnrSgn8VdwtBlr2zDKUoMA3G9uXMHlBO8='  # Klucz Fernet wygenerowany wcześniej
-import zlib
-from cryptography.fernet import Fernet
 
-cipher_suite = Fernet(key1)
+def decrypt_data(ciphertext: bytes, key: bytes, iv: bytes) -> bytes:
+    """
+    Deszyfruje dane za pomocą AES w trybie CBC.
 
-# Odczytanie zaszyfrowanych danych z pliku
-with open("compressed_encrypted_data.bin", "rb") as f:
-    encrypted_data = f.read()
+    Args:
+        ciphertext (bytes): Zaszyfrowane dane w formacie bajtów.
+        key (bytes): Klucz AES użyty do szyfrowania.
+        iv (bytes): Wektor inicjalizujący (IV) użyty do szyfrowania.
 
-# Odszyfrowanie danych
-compressed_data = cipher_suite.decrypt(encrypted_data)
-print(compressed_data)
-# Zdekompresowanie danych
-buffer = zlib.decompress(compressed_data)
-print(buffer)
-# Odszyfrowanie XOR (zamiana danych binarnych na int)
-xor = int.from_bytes(buffer, byteorder="big")
-print(xor)
+    Returns:
+        bytes: Odszyfrowane dane w formacie bajtów.
+    """
+    # Tworzenie deszyfratora
+    cipher = Cipher(algorithms.AES(key), modes.CBC(iv))
+    decryptor = cipher.decryptor()
 
-# Klucz do XOR
-key = "wojtek"
-keyint = int.from_bytes(key.encode(), byteorder="big")
+    # Deszyfrowanie danych
+    padded_data = decryptor.update(ciphertext) + decryptor.finalize()
 
-# Odszyfrowanie danych XOR
-original_data = xor ^ keyint
+    # Usunięcie paddingu
+    padding_length = padded_data[-1]
+    plaintext = padded_data[:-padding_length]
 
-# Zamiana z int na hash i dalej na oryginalne dane
-data_hex = hex(original_data)[2:]  # Zamiana na ciąg heksadecymalny
-retrieved_data = bytes.fromhex(data_hex)
+    return plaintext
 
-print("Oryginalne dane:", retrieved_data.decode())
-#b'gAAAAABnWM0qliVznSWzZPSNH6xssxuZnEHzmVcQO58FzaoGvmgRyw8cGMBC6B_rBDiJ13OvidZ5eCpkGx_fvSctN6ndfnFp5A=='
+
+# Przykład użycia
+if __name__ == "__main__":
+    # Użyj zaszyfrowanych danych z programu szyfrującego
+    encrypted_data = b"\x90\x93\t\x8ao\x11\xb0^ \x07\xd90\x12\\?\x8e\xec)\x91\x9e\xcd\xfc\xec\xa6E\xa0\x114'(H\x1b"  # Zaszyfrowane dane
+    aes_key = b'\xf0\x0e\xca\xaf\xc1~\xd7\x9e\x82\xb0\xa8\x99\x9c\xbe\x02\x13\xdc%\x0b\x1a%f3\xf7\x96E\x93f4\xf8\xaa\xa4'  # Klucz AES
+    aes_iv = b'\xba\xda\x94\xe4\xa4\xaf+k\xa1\xcb6\x01\x1b\xc0>g' # IV
+
+    decrypted_data = decrypt_data(encrypted_data, aes_key, aes_iv)
+    print("Odszyfrowane dane:", decrypted_data)
