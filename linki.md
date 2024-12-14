@@ -26,14 +26,14 @@
 ## DRON - wstępny
   [KIT](https://holybro.com/products/kopis-cinematic-x8-kit?srsltid=AfmBOopekRkSH-1YFATUQtPnrYqmDr8Ef6WPmqBGsm8OYjSP1M0vcSsA)  
   [Rama Holybro Kopis Cinematic X8 7"](https://avifly.pl/pl/ramy-do-dronow/holybro-kopis-cinematic-x8)  
-  [Silniki T-Motor F90 1300kV 2806.5 Long Rage ](https://avifly.pl/pl/silniki-do-dronow/t-motor-f90-1300kv-2806-5-long-rage)  
   
 ### - Bateria
-
+  [Lipol Tattu R-Line 5.0 6S 22.2V 1400mAh 150C XT60](https://avifly.pl/pl/pakiety-li-po/r-line-v5-1400mah-6s)  
 ### - Silniki 
+  [Silniki T-Motor F90 1300kV 2806.5 Long Rage ](https://avifly.pl/pl/silniki-do-dronow/t-motor-f90-1300kv-2806-5-long-rage)  
 
 ### - ESC
-
+  
 ### - Tango
 
 ### - TBS 
