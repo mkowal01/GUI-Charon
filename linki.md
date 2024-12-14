@@ -13,7 +13,7 @@
 
 ## RPI $ B+
   [BOTLAND RASBERRY PI 4 B+]([https://botland.com.pl/399-raspberry-pi?cd=21242416025&ad=165404582127&kd=raspberry%20pi&gad_source=1&gclid=CjwKCAiA9vS6BhA9EiwAJpnXw-jvnphmTn9ZYZbxApgmBdl0DM0M_-rhnBYGjcc1Q7ZCPlVQvRTemhoCH_cQAvD_BwE](https://botland.com.pl/moduly-i-zestawy-raspberry-pi-4b/16579-raspberry-pi-4-model-b-wifi-dualband-bluetooth-8gb-ram-18ghz-5056561800356.html))  
-  [PINY RPI4B+](https://pinout.xyz)
+  [PINY RPI4B+](https://pinout.xyz)  
   [Dokumnetacja RPI4B](https://www.raspberrypi.com/products/raspberry-pi-4-model-b/?variant=raspberry-pi-4-model-b-8gb)  
   [Dokumnetacja TECHNICZNA BCM2711](https://datasheets.raspberrypi.com/bcm2711/bcm2711-peripherals.pdf)  
 ## Przetwornica step down 5 v
