@@ -19,7 +19,7 @@
 ## Przetwornica step down 5 v
 
 ## Biblioteki
-  [opencv-python](https://docs.opencv.org/4.x/d6/d00/tutorial_py_root.html)
+  [opencv-python](https://docs.opencv.org/4.x/d6/d00/tutorial_py_root.html)  
   [PYQT](https://www.riverbankcomputing.com/static/Docs/PyQt5/)  
   [Kivy](https://kivy.org/doc/stable/gettingstarted/intro.html)  
   
