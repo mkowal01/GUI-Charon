@@ -10,7 +10,7 @@ def encrypt_data(data: bytes) -> tuple:
         data (bytes): Dane do zaszyfrowania w formacie bajtów.
 
     Returns:
-        tuple: Zaszyfrowane dane, klucz AES, wektor IV.
+        tuple: Zaszyfrowane dane w bitach, klucz AES w bajtach, wektor IV w bajtach.
     """
     key = urandom(32)  # 256-bitowy klucz
     iv = urandom(16)  # 128-bitowy wektor inicjalizujący (IV)
@@ -26,13 +26,16 @@ def encrypt_data(data: bytes) -> tuple:
     # Szyfrowanie danych
     ciphertext = encryptor.update(padded_data) + encryptor.finalize()
 
-    return ciphertext, key, iv
+    # Konwersja zaszyfrowanych danych na bity
+    ciphertext_bits = ''.join(format(byte, '08b') for byte in ciphertext)
+
+    return ciphertext_bits, key, iv
 
 
 # Przykład użycia
 if __name__ == "__main__":
     data = b"Secret data in bytes"
-    encrypted_data, aes_key, aes_iv = encrypt_data(data)
-    print("Zaszyfrowane dane:", encrypted_data)
-    print("Klucz AES:", aes_key)
-    print("IV:", aes_iv)
+    encrypted_data_bits, aes_key, aes_iv = encrypt_data(data)
+    print("Zaszyfrowane dane (bity):", encrypted_data_bits)
+    print("Klucz AES (bajty):", aes_key)
+    print("IV (bajty):", aes_iv)
