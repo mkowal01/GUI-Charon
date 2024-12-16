@@ -91,8 +91,8 @@ def server_program(host: str, port: int, json_file: str):
             try:
                 decrypted_data = decrypt_data(encrypted_message, json_file)
                 print("Odszyfrowane dane (tekst):", decrypted_data.decode('utf-8'))
+                runtext1.display_text_on_matrix(decrypted_data.decode('utf-8'))
                 conn.sendall(b'Dane zostaly odpowiednie.')
-                runtext1.display_text_on_matrix(decrypted_data)
             except Exception as e:
 
                 print(f"Błąd podczas odszyfrowywania: {e}")
@@ -104,6 +104,6 @@ def server_program(host: str, port: int, json_file: str):
         server_socket.close()
 
 if __name__ == "__main__":
-    json_file_path = "half_keys_indexed.json"
+    json_file_path = "/home/kopis/GUI-Charon/szyfrandodszyfr/half_keys_indexed.json"
     data = server_program("192.168.1.2", 2137, json_file_path)
     
