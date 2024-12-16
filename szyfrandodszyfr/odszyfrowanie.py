@@ -1,6 +1,7 @@
 import socket
 import json
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+import runtext1
 
 def load_key_from_json(index: int, json_file: str) -> bytes:
     """
@@ -91,7 +92,9 @@ def server_program(host: str, port: int, json_file: str):
                 decrypted_data = decrypt_data(encrypted_message, json_file)
                 print("Odszyfrowane dane (tekst):", decrypted_data.decode('utf-8'))
                 conn.sendall(b'Dane zostaly odpowiednie.')
+                runtext1.display_text_on_matrix(decrypted_data)
             except Exception as e:
+
                 print(f"Błąd podczas odszyfrowywania: {e}")
                 conn.sendall(f"Błąd: {e}".encode('utf-8'))
 
@@ -102,4 +105,5 @@ def server_program(host: str, port: int, json_file: str):
 
 if __name__ == "__main__":
     json_file_path = "half_keys_indexed.json"
-    server_program("0.0.0.0", 2137, json_file_path)
+    data = server_program("192.168.1.2", 2137, json_file_path)
+    
