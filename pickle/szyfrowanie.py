@@ -86,4 +86,4 @@ def client_program(host: str, port: int, data: bytes):
 if __name__ == "__main__":
     data = input("Podaj dane do zaszyfrowania: ").encode('utf-8')
 
-    client_program("192.168.82.183", 2137, data)
+    client_program("192.168.1.2", 2137, data)
