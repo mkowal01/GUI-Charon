@@ -1,12 +1,7 @@
-# Ogórczki.py oraz obb.py
+# Szyfrowanie i odszyfrowywanie
 ## Wstęp
 ### Koncepcja
-Plan działania przesyłania może działać na podstawie podobnej do AESA lecz może to być strzał w kolano dosyć mocno.
-Z tego względu, że plan polegał by na tym, że dane byśmy mogli szyfrować w sposób taki, że 
-- Widaomości stałe pre definiowane były by hashowane i xorowane za pomocą klucza, który był by zapisany zdefiniowany z 
-lub wysyłany na początku / na końcu wiadomości. Za pomocy wbudowanej biblioteki `hashlib`
-- Wszystko było by wysłane po przez `ogóreczki`,a także buffor, który dodatkowo by to kompresował za pomocą `zlib`
-
+Działanie programu będzie na za pomocą biblioteki `cryptography`
 ### Działanie
 
 ```python
