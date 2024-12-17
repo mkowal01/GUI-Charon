@@ -11,8 +11,11 @@ def encrypt_data(data: bytes) -> tuple:
         data (bytes): Dane do zaszyfrowania w formacie bajtów.
 
     Returns:
-        tuple: Zaszyfrowane dane w bitach, indeksy połówek klucza, wektor IV w bitach.
+        tuple: Dane wejściowe w hex, zaszyfrowane dane w hex, indeksy połówek klucza, IV w hex.
     """
+    # Konwersja danych wejściowych do hex
+    data_hex = data.hex()
+
     # Generowanie klucza z losowych połówek
     full_key, index1, index2 = wspolnyklucz.generate_random_full_key("half_keys_indexed.json")
 
@@ -28,30 +31,22 @@ def encrypt_data(data: bytes) -> tuple:
     encryptor = cipher.encryptor()
 
     # Padding do wielokrotności bloku (16 bajtów)
-    padding_length = 16 - (len(data) % 16)
-    padded_data = data + bytes([padding_length]) * padding_length
+    data_bytes = bytes.fromhex(data_hex)
+    padding_length = 16 - (len(data_bytes) % 16)
+    padded_data = data_bytes + bytes([padding_length]) * padding_length
 
     # Szyfrowanie danych
     ciphertext = encryptor.update(padded_data) + encryptor.finalize()
 
-    # Konwersja zaszyfrowanych danych na bity
-    ciphertext_bits = ''.join(format(byte, '08b') for byte in ciphertext)
+    # Konwersja zaszyfrowanych danych oraz IV na format hex
+    ciphertext_hex = ciphertext.hex()
+    iv_hex = iv.hex()
 
-    # Konwersja IV na bity
-    iv_bits = ''.join(format(byte, '08b') for byte in iv)
-
-    # Dodanie indeksów i odpowiednich separatorów
-    index1_bits = f"{index1:08b}"
-    index2_bits = f"{index2:08b}"
-    final_ciphertext = (
-        index1_bits + "10101010" + index2_bits + ciphertext_bits + "01010101" + iv_bits
-    )
-
-    return final_ciphertext, index1, index2, iv_bits
+    return data_hex, ciphertext_hex, index1, index2, iv_hex
 
 def client_program(host: str, port: int, data: bytes):
     """
-    Klient wysyła indeksy połówek klucza, zaszyfrowane dane i IV do serwera.
+    Klient wysyła dane wejściowe, indeksy połówek klucza, zaszyfrowane dane i IV do serwera.
 
     Args:
         host (str): Adres IP serwera.
@@ -60,20 +55,20 @@ def client_program(host: str, port: int, data: bytes):
     """
     try:
         # Szyfrowanie danych
-        encrypted_data_bits, index1, index2, iv_bits = encrypt_data(data)
+        data_hex, encrypted_data_hex, index1, index2, iv_hex = encrypt_data(data)
 
         # Przygotowanie wiadomości
-        message = encrypted_data_bits
-        print(len(encrypted_data_bits))
+        message = f"{index1:02x}:{index2:02x}:{data_hex}:{encrypted_data_hex}:{iv_hex}"
+        print("Długość wiadomości HEX:", len(message))
+
         # Połączenie z serwerem
         client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         client_socket.connect((host, port))
         print(f"Połączono z serwerem {host}:{port}")
 
-        # Wysyłanie zaszyfrowanych danych, indeksów klucza i IV
+        # Wysyłanie wiadomości
         client_socket.sendall(message.encode('utf-8'))
-        print(len(message))
-        print("Dane zostały wysłane.")
+        print("Dane zostały wysłane w HEX.")
 
         # Odbieranie odpowiedzi
         response = client_socket.recv(4096).decode('utf-8')
@@ -85,5 +80,4 @@ def client_program(host: str, port: int, data: bytes):
 
 if __name__ == "__main__":
     data = input("Podaj dane do zaszyfrowania: ").encode('utf-8')
-
     client_program("192.168.1.2", 2137, data)
