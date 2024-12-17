@@ -1,0 +1,6 @@
+https://ardupilot.org/copter/docs/common-holybro-kakuteh7.html
+https://holybro.com/products/kakute-h7?srsltid=AfmBOorp4pnaYEhZVODGkB4ef66ksVHBXxyYvdXpPOpi9q9I6Q1NRyBb
+
+
+firmware
+https://firmware.ardupilot.org/Copter/stable-4.5.7/KakuteH7/
