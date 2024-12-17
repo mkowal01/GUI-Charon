@@ -76,7 +76,7 @@ def client_program(host: str, port: int, data: bytes):
 
         client_socket.close()
     except Exception as e:
-        print(f"Błąd klienta: {e}")
+        print(f"Błąd klienta : {e}")
 
 if __name__ == "__main__":
     data = input("Podaj dane do zaszyfrowania: ").encode('utf-8')
