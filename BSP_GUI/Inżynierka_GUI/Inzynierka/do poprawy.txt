@@ -1,0 +1,51 @@
+-przt uruchomieniu nie widać zakładek, dopiero po kliknięciu rozpocznij się pojawią
+- po rozpocznij, ma być ustawione na instrukji obslugi: 
+ *mają być odnośniki do tłumaczenia danej usługi: text, audio, lokalizacja
+ *
+
+
+
+
+
+
+10x20.bdf
+4x6.bdf
+5x7.bdf
+5x8.bdf
+6x10.bdf
+6x12.bdf
+6x13.bdf
+6x13B.bdf
+6x13O.bdf
+6x9.bdf
+7x13.bdf
+7x13B.bdf
+7x13O.bdf
+7x14.bdf
+7x14B.bdf
+8x13.bdf
+8x13B.bdf
+8x13O.bdf
+9x15.bdf
+9x15B.bdf
+9x18.bdf
+8 years ago
+9x18B.bdf
+clR6x12.bdf
+helvR12.bdf
+texgyre-27.bdf
+
++------+------+------+------+------+------+
+|      Tekstowe          | | ↓ || Język |
+|      Pole              |      |       |
++------+------+------+------+------+------+
+|                     	        | Czcion|
++------+------+------+------+------+------+
+|                     	        |Zwroty |
++------+------+------+------+------+------+
+|Zwrot*||Zwrot*||Zwrot*||Zwrot1*||Zwrot*|
+|Zwrot*||Zwrot*||Zwrot*||Zwrot1*||Zwrot*|
+|Zwrot*||Zwrot*||Zwrot*||Zwrot1*||Zwrot*|
+|Zwrot*||Zwrot*||Zwrot*||Zwrot1*||Zwrot*|
+|                            |Wysyłanie|
++------+------+------+------+------+------+
