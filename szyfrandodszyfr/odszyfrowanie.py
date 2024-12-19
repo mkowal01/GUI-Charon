@@ -5,51 +5,52 @@ import runtext1
 
 def load_key_from_json(index: int, json_file: str) -> bytes:
     """
-    Ładuje połowę klucza z pliku JSON na podstawie indeksu.
+    �aduje po�ow� klucza z pliku JSON na podstawie indeksu.
 
     Args:
-        index (int): Indeks klucza do załadowania.
-        json_file (str): Ścieżka do pliku JSON zawierającego połowy kluczy.
+        index (int): Indeks klucza do za�adowania.
+        json_file (str): �cie�ka do pliku JSON zawieraj�cego po�owy kluczy.
 
     Returns:
-        bytes: Połowa klucza w formacie bajtów.
+        bytes: Po�owa klucza w formacie bajt�w.
     """
     with open(json_file, "r") as file:
         half_keys = json.load(file)
     return bytes.fromhex(half_keys[str(index)])
 
-def decrypt_data(encrypted_bits: str, json_file: str) -> bytes:
+def decrypt_data(message: str, json_file: str) -> str:
     """
-    Odszyfrowuje dane zaszyfrowane za pomocą AES w trybie CBC.
-    Klucz i wektor IV są wyodrębniane z wiadomości, a połowy klucza są ładowane z pliku JSON.
+    Odszyfrowuje dane zaszyfrowane za pomoc� AES w trybie CBC.
+    Klucz i wektor IV s� wyodr�bniane z wiadomo�ci, a po�owy klucza s� �adowane z pliku JSON.
 
     Args:
-        encrypted_bits (str): Zaszyfrowane dane w postaci ciągu bitów.
-        json_file (str): Ścieżka do pliku JSON zawierającego połowy kluczy.
+        message (str): Zaszyfrowana wiadomo�� w formacie hex (index1:index2:data:ciphertext:iv).
+        json_file (str): �cie�ka do pliku JSON zawieraj�cego po�owy kluczy.
 
     Returns:
-        bytes: Odszyfrowane dane w formacie bajtów.
+        str: Odszyfrowane dane w formacie tekstowym.
     """
-    # Rozdzielenie wiadomości na składowe
-    index1_bits = encrypted_bits[:8]  # Indeks pierwszej połowy klucza (8 bitów)
-    index2_bits = encrypted_bits[16:24]  # Indeks drugiej połowy klucza (8 bitów)
-    ciphertext_bits = encrypted_bits[24:-136]  # Zaszyfrowana wiadomość
-    iv_bits = encrypted_bits[-128:]  # Wektor IV (128 bitów)
+    # Rozdzielenie wiadomo�ci na sk�adowe
+    parts = message.split(":")
+    if len(parts) != 5:
+        raise ValueError("Niepoprawny format wiadomo�ci.")
 
-    # Konwersja indeksów z bitów na liczby całkowite
-    index1 = int(index1_bits, 2)
-    index2 = int(index2_bits, 2)
+    index1 = int(parts[0], 16)  # Indeks pierwszej po�owy klucza
+    index2 = int(parts[1], 16)  # Indeks drugiej po�owy klucza
+    data_hex = parts[2]         # Oryginalne dane (hex) - nieu�ywane przy deszyfrowaniu
+    ciphertext_hex = parts[3]   # Zaszyfrowane dane (hex)
+    iv_hex = parts[4]           # IV (hex)
 
-    # Ładowanie połówek klucza z pliku JSON
+    # �adowanie po��wek klucza z pliku JSON
     key1 = load_key_from_json(index1, json_file)
     key2 = load_key_from_json(index2, json_file)
 
-    # Połączenie klucza
+    # Po��czenie klucza
     full_key = key1 + key2
 
-    # Konwersja IV i zaszyfrowanej wiadomości z bitów na bajty
-    iv = bytes(int(iv_bits[i:i+8], 2) for i in range(0, len(iv_bits), 8))
-    ciphertext = bytes(int(ciphertext_bits[i:i+8], 2) for i in range(0, len(ciphertext_bits), 8))
+    # Konwersja IV i zaszyfrowanej wiadomo�ci z hex na bajty
+    iv = bytes.fromhex(iv_hex)
+    ciphertext = bytes.fromhex(ciphertext_hex)
 
     # Tworzenie deszyfratora
     cipher = Cipher(algorithms.AES(full_key), modes.CBC(iv))
@@ -58,52 +59,50 @@ def decrypt_data(encrypted_bits: str, json_file: str) -> bytes:
     # Deszyfrowanie danych
     padded_data = decryptor.update(ciphertext) + decryptor.finalize()
 
-    # Usunięcie paddingu
+    # Usuni�cie paddingu
     padding_length = padded_data[-1]
     if padding_length > 16 or padding_length == 0:
-        raise ValueError("Padding nieprawidłowy.")
+        raise ValueError("Padding nieprawid�owy.")
     plaintext = padded_data[:-padding_length]
 
-    return plaintext
+    return plaintext.decode("utf-8")
 
 def server_program(host: str, port: int, json_file: str):
     """
-    Funkcja uruchamia serwer nasłuchujący na podanym porcie, który deszyfruje wiadomości.
+    Funkcja uruchamia serwer nas�uchuj�cy na podanym porcie, kt�ry deszyfruje wiadomo�ci.
 
     Args:
         host (str): Adres IP serwera.
         port (int): Port serwera.
-        json_file (str): Ścieżka do pliku JSON zawierającego połowy kluczy.
+        json_file (str): �cie�ka do pliku JSON zawieraj�cego po�owy kluczy.
     """
     server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     server_socket.bind((host, port))
     server_socket.listen(1)
-    print(f"Serwer nasłuchuje na {host}:{port}")
+    print(f"Serwer nas�uchuje na {host}:{port}")
 
     try:
         while True:
             conn, addr = server_socket.accept()
-            print(f"Połączono z {addr}")
+            print(f"Po��czono z {addr}")
 
             encrypted_message = conn.recv(4096).decode('utf-8')
-            print("Otrzymano zaszyfrowaną wiadomość.")
+            print("Otrzymano zaszyfrowan� wiadomo��.")
 
             try:
                 decrypted_data = decrypt_data(encrypted_message, json_file)
-                print("Odszyfrowane dane (tekst):", decrypted_data.decode('utf-8'))
-                runtext1.display_text_on_matrix(decrypted_data.decode('utf-8'))
-                conn.sendall(b'Dane zostaly odpowiednie.')
+                print("Odszyfrowane dane (tekst):", decrypted_data)
+                runtext1.display_text_on_matrix(decrypted_data)
+                conn.sendall(b'Dane zostaly odpowiednio odszyfrowane.')
             except Exception as e:
-
-                print(f"Błąd podczas odszyfrowywania: {e}")
-                conn.sendall(f"Błąd: {e}".encode('utf-8'))
+                print(f"B��d podczas odszyfrowywania: {e}")
+                conn.sendall(f"B��d: {e}".encode('utf-8'))
 
             conn.close()
     except KeyboardInterrupt:
-        print("Serwer został zatrzymany.")
+        print("Serwer zosta� zatrzymany.")
         server_socket.close()
 
 if __name__ == "__main__":
     json_file_path = "/home/kopis/GUI-Charon/szyfrandodszyfr/half_keys_indexed.json"
-    data = server_program("192.168.1.2", 2137, json_file_path)
-    
+    server_program("192.168.1.2", 2137, json_file_path)
