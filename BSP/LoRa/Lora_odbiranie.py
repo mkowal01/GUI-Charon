@@ -2,7 +2,7 @@ import serial
 import binascii  # Do konwersji z HEX
 
 # Ustawienia portu szeregowego
-SERIAL_PORT = 'COM9'  # Port USB UART odbiornika
+SERIAL_PORT = 'COM8'  # Port USB UART odbiornika
 BAUD_RATE = 9600
 
 
