@@ -14,7 +14,7 @@ def encrypt_data(data: bytes) -> tuple:
         tuple: Zaszyfrowane dane w bitach, indeksy połówek klucza, wektor IV w bitach.
     """
     # Generowanie klucza z losowych połówek
-    full_key, index1, index2 = wspolnyklucz.generate_random_full_key("half_keys_indexed.json")
+    full_key, index1, index2 = wspolnyklucz.generate_random_full_key("/home/kopis/GUI-Charon/szyfrandodszyfr/half_keys_indexed.json")
 
     # Upewnij się, że klucz ma poprawną długość (256 bitów = 32 bajty)
     if len(full_key) != 32:
