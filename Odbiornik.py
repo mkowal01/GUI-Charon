@@ -1,38 +1,41 @@
 import serial
-import binascii  # Do konwersji na HEX
+import binascii  # Do konwersji z HEX
 
 # Ustawienia portu szeregowego
-SERIAL_PORT = 'COM4'  # Port USB UART nadajnika
+SERIAL_PORT = 'COM3'  # Port USB UART odbiornika
 BAUD_RATE = 9600
 
 
 def main():
     try:
         ser = serial.Serial(SERIAL_PORT, BAUD_RATE, timeout=1)
-        print(f"Nadajnik podłączony do {SERIAL_PORT}")
-        print("Wpisz wiadomość i naciśnij ENTER, aby ją wysłać. Wpisz 'exit', aby zakończyć.")
+        print(f"Odbiornik podłączony do {SERIAL_PORT}")
+        print("Czekam na wiadomości...")
 
+        buffer = ""
         while True:
-            # Wpisanie wiadomości
-            message = input("Wpisz wiadomość do wysłania: ")
-            if message.lower() == "exit":
-                print("Zamykanie programu nadajnika.")
-                break
+            if ser.in_waiting > 0:  # Sprawdź, czy są dane do odebrania
+                char = ser.read(1).decode('ascii', errors='ignore')
 
-            # Konwersja wiadomości na HEX
-            hex_message = binascii.hexlify(message.encode('utf-8')).decode('ascii')
-            ser.write((hex_message + "\n").encode('ascii'))  # Wyślij HEX zakończony '\n'
-            print(f"Wysłano (HEX): {hex_message}")
+                if char == "\n":  # Koniec wiadomości
+                    hex_message = buffer.strip()
+                    try:
+                        # Dekodowanie wiadomości z HEX na tekst
+                        received_message = bytes.fromhex(hex_message).decode('utf-8')
+                        print(f"Odebrano: {received_message} (HEX: {hex_message})")
+                        # Wpisanie odpowiedzi
+                        response_message = f"Długość wiadomości {len(received_message)}"
+                        response_hex = binascii.hexlify(response_message.encode('utf-8')).decode('ascii')
+                        ser.write((response_hex + "\n").encode('ascii'))
+                        print(f"Wysłano (HEX): {response_hex}")
+                    except ValueError:
+                        print(f"Błąd dekodowania HEX: {hex_message}")
+                        buffer = ""
 
-            # Oczekiwanie na odpowiedź
-            response_hex = ""
-            while not response_hex:
-                if ser.in_waiting > 0:
-                    response_hex = ser.readline().decode('ascii', errors='ignore').strip()
 
-            # Dekodowanie odpowiedzi z HEX
-            response_text = bytes.fromhex(response_hex).decode('utf-8', errors='ignore')
-            print(f"Otrzymano odpowiedź: {response_text} (HEX: {response_hex})")
+                    buffer = ""  # Wyczyść bufor
+                else:
+                    buffer += char
 
     except serial.SerialException as e:
         print(f"Błąd portu szeregowego: {e}")
