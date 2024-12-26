@@ -33,9 +33,9 @@ def hex_na_plik(sciezka_hex, sciezka_wyjscie):
 
 
 # Przykład użycia:
-sciezka_wejsciowa = 'nagranie.wav'  # Ścieżka do oryginalnego pliku
+sciezka_wejsciowa = 'nagranie_wzmocnione.wav'  # Ścieżka do oryginalnego pliku
 sciezka_hex = 'plik_hex.txt'  # Ścieżka do pliku HEX
-sciezka_wyjscie = 'nagranie2.wav'  # Ścieżka do odtworzonego pliku
+sciezka_wyjscie = 'nagranie_wzmocnione2.wav'  # Ścieżka do odtworzonego pliku
 
 # Konwersja pliku na HEX
 plik_na_hex(sciezka_wejsciowa, sciezka_hex)
