@@ -33,11 +33,11 @@ def bajty_na_plik(sciezka_bajty, sciezka_wyjscie):
 
 # Przykład użycia:
 sciezka_wejsciowa = 'C:/Users/ninja/OneDrive/Pulpit/Praca/GUI-Charon/nagranie_wzmocnione.mp3'  # Ścieżka do oryginalnego pliku
-sciezka_bajty = 'plik_bajty.bin'  # Ścieżka do pliku bajtów
+sciezka_bajty = 'received_file.bin'  # Ścieżka do pliku bajtów
 sciezka_wyjscie = 'nagranie_odtworzone.mp3'  # Ścieżka do odtworzonego pliku
 
 # Konwersja pliku na bajty
-plik_na_bajty(sciezka_wejsciowa, sciezka_bajty)
+# plik_na_bajty(sciezka_wejsciowa, sciezka_bajty)
 # Przywrócenie pliku z bajtów
 bajty_na_plik(sciezka_bajty, sciezka_wyjscie)
 

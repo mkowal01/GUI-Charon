@@ -13,8 +13,9 @@ def main():
             # Wpisanie wiadomości
             message = input("Wpisz wiadomość do wysłania: ")
             message_length = len(message)
-            byte_message = f"{message_length}|{message}|XXX\n".encode('utf-8')
-            ser.write(byte_message + b"")  # Wyślij wiadomość zakończoną '\n'
+            byte_message = f"{message_length}|{message}|XXX".encode('utf-8')
+            print(byte_message)
+            ser.write(byte_message + b"\n")  # Wyślij wiadomość zakończoną '\n'
             print(f"Wysłano (BYTE): {byte_message}")
 
             # Oczekiwanie na odpowiedź
