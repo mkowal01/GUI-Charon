@@ -4,7 +4,7 @@ from PyQt5.QtCore import Qt
 from translatepy import Translate
 
 
-class LocalizationTab(QWidget):
+class AudioTab(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.parent_window = parent

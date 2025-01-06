@@ -1,5 +1,4 @@
-import os
-from PyQt5.QtWidgets import QWidget, QGridLayout, QTextEdit, QComboBox, QSizePolicy, QPushButton, QLabel, QHBoxLayout, QMessageBox
+from PyQt5.QtWidgets import QWidget, QGridLayout, QTextEdit, QComboBox, QSizePolicy, QPushButton, QLabel, QHBoxLayout
 from PyQt5.QtGui import QFont, QIcon
 from PyQt5.QtCore import Qt, QThread, pyqtSignal, QTimer
 from translatepy import Translate
@@ -69,7 +68,7 @@ class AudioTab(QWidget):
         self.text_input.setPlaceholderText("Pole do wpisania tekstu")
         self.text_input.setStyleSheet("background-color: white; border: 1px solid black; border-radius: 10px;")
         self.text_input.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.grid_layout.addWidget(self.text_input, 0, 0, 2, 4)
+        self.grid_layout.addWidget(self.text_input, 0, 0, 2, 2)
 
         # Pole do wyświetlania tłumaczenia (2,0) do (3,1)
         self.translation_display = QTextEdit()
@@ -78,7 +77,7 @@ class AudioTab(QWidget):
         self.translation_display.setStyleSheet("background-color: white; border: 1px solid black; border-radius: 10px;")
         self.translation_display.setPlaceholderText("Tutaj pojawi się tłumaczenie...")
         self.translation_display.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.grid_layout.addWidget(self.translation_display, 2, 0, 2, 4)
+        self.grid_layout.addWidget(self.translation_display, 2, 0, 2, 2)
 
         # Nagrywanie, odtwarzanie i kasowanie nagrań (4,0) do (4,5)
         # Ikony
@@ -93,34 +92,12 @@ class AudioTab(QWidget):
         self.record_button.setIcon(self.record_icon)
         # self.record_button.setFixedSize(50, 50)
         self.record_button.clicked.connect(self.toggle_recording)
-        self.record_button.setStyleSheet(
-            "    background-color: #FF4D4D; color: #FFFFFF; padding: 10px; border-radius: 10px;"
-            "    height: 100px;"
-            "    border: 1px solid black;"
-        )
         self.grid_layout.addWidget(self.record_button, 4, 0, 1, 1)
 
-        # Label statusu nagrywania
-        self.recording_status_label = QLabel("Brak audio")  # Domyślny napis
-        self.recording_status_label.setFont(QFont("Arial", 14))
-        self.recording_status_label.setAlignment(Qt.AlignCenter)
-        self.recording_status_label.setStyleSheet(
-            "    background-color: #2196F3; color: #FFFFFF; padding: 10px; border-radius: 10px;"
-            "    height: 100px;"
-            "    border: 1px solid black;"
-        )
+        # Ikona statusu nagrywania (4,1)
+        self.recording_status_label = QLabel()
+        # self.recording_status_label.setPixmap(self.recorded_audio_icon.pixmap(50, 50))  # Domyślnie ustaw ikonę
         self.grid_layout.addWidget(self.recording_status_label, 4, 1, 1, 1)
-
-        # Etykieta czasu nagrania
-        self.time_label = QLabel("00:00")  # Domyślny czas
-        self.time_label.setFont(QFont("Arial", 14))
-        self.time_label.setAlignment(Qt.AlignCenter)
-        self.time_label.setStyleSheet(
-            "    background-color: #B0BEC5; color: #000000; padding: 10px; border-radius: 10px;"
-            "    height: 100px;"
-            "    border: 1px solid black;"
-        )
-        self.grid_layout.addWidget(self.time_label, 4, 2, 1, 1)
 
         # Przycisk odtwarzania (4,3)
         self.play_button = QPushButton()
@@ -128,11 +105,6 @@ class AudioTab(QWidget):
         # self.play_button.setFixedSize(50, 50)
         self.play_button.clicked.connect(self.toggle_playback)
         self.play_button.setEnabled(False)
-        self.play_button.setStyleSheet(
-            "    background-color: #4CAF50; color: #FFFFFF; padding: 10px; border-radius: 10px;"
-            "    height: 100px;"
-            "    border: 1px solid black;"
-        )
         self.grid_layout.addWidget(self.play_button, 4, 3, 1, 1)
 
         # Przycisk zatrzymywania odtwarzania (4,4)
@@ -141,11 +113,6 @@ class AudioTab(QWidget):
         # self.stop_button.setFixedSize(50, 50)
         self.stop_button.clicked.connect(self.stop_playback)
         self.stop_button.setEnabled(False)
-        self.stop_button.setStyleSheet(
-            "    background-color: #FF4D4D; color: #FFFFFF; padding: 10px; border-radius: 10px;"
-            "    height: 100px;"
-            "    border: 1px solid black;"
-        )
         self.grid_layout.addWidget(self.stop_button, 4, 4, 1, 1)
 
         # Przycisk kasowania (4,5)
@@ -154,11 +121,6 @@ class AudioTab(QWidget):
         # self.delete_button.setFixedSize(50, 50)
         self.delete_button.clicked.connect(self.delete_audio)
         self.delete_button.setEnabled(False)
-        self.delete_button.setStyleSheet(
-            "    background-color: #FF9800; color: #FFFFFF; padding: 10px; border-radius: 10px;"
-            "    height: 100px;"
-            "    border: 1px solid black;"
-        )
         self.grid_layout.addWidget(self.delete_button, 4, 5, 1, 1)
 
         # Zmienna audio
@@ -174,6 +136,56 @@ class AudioTab(QWidget):
         self.playback_position = 0  # Pozycja w ramkach
 
         self.setLayout(self.grid_layout)
+        # # Przycisk do nagrywania (4,0)
+        # self.record_button = QPushButton("Nagrywanie")
+        # self.record_button.setFont(QFont("Arial", 12))
+        # self.record_button.setStyleSheet(
+        #     "QPushButton {"
+        #     "    background-color: lightgreen;"
+        #     "    border: 1px solid black;"
+        #     "    border-radius: 10px;"
+        #     "}"
+        #     "QPushButton:hover {"
+        #     "    background-color: green;"
+        #     "    color: white;"
+        #     "}"
+        # )
+        # self.record_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        # self.grid_layout.addWidget(self.record_button, 4, 0)
+
+        # # Przycisk do odtwarzania (4,1)
+        # self.play_button = QPushButton("Odtwarzanie nagrania")
+        # self.play_button.setFont(QFont("Arial", 12))
+        # self.play_button.setStyleSheet(
+        #     "QPushButton {"
+        #     "    background-color: lightblue;"
+        #     "    border: 1px solid black;"
+        #     "    border-radius: 10px;"
+        #     "}"
+        #     "QPushButton:hover {"
+        #     "    background-color: blue;"
+        #     "    color: white;"
+        #     "}"
+        # )
+        # self.play_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        # self.grid_layout.addWidget(self.play_button, 4, 1)
+
+        # # Przycisk do kasowania nagrania (4,2)
+        # self.delete_button = QPushButton("Kasowanie nagrania")
+        # self.delete_button.setFont(QFont("Arial", 12))
+        # self.delete_button.setStyleSheet(
+        #     "QPushButton {"
+        #     "    background-color: lightcoral;"
+        #     "    border: 1px solid black;"
+        #     "    border-radius: 10px;"
+        #     "}"
+        #     "QPushButton:hover {"
+        #     "    background-color: red;"
+        #     "    color: white;"
+        #     "}"
+        # )
+        # self.delete_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        # self.grid_layout.addWidget(self.delete_button, 4, 2)
 
         # Wybór języka (0,2)
         self.language_selector = QComboBox()
@@ -189,46 +201,14 @@ class AudioTab(QWidget):
             "    border: 1px solid black;"
             "    border-radius: 15px;"
             "    padding: 5px;"
-            "    text-align: center;"
             "}"
-            "QComboBox::drop-down {"
-            "    border: none;"
-            "    width: 0px;"  # Ukrycie strzałki
+            "QComboBox:hover {"
+            "    background-color: lightgray;"
             "}"
-            "QComboBox QAbstractItemView {"
-            "    border: 1px solid black;"
-            "    border-radius: 15px;"
-            "    background-color: #1976D2;"  # Kolor tła
-            "    color: white;"
-            "    selection-background-color: #0D47A1;"
-            "    selection-color: white;"
-            "    outline: none;"  # Usunięcie linii przerywanej
-            "    padding: 0px;"  # Usunięcie białych końców
-            "    margin: 0px;"  # Usunięcie marginesów
-            "}"
-            "QScrollBar:vertical {"
-            "    border: none;"
-            "    background-color: #1976D2;"
-            "    width: 12px;"
-            "    margin: 3px 0px 3px 0px;"
-            "    border-radius: 6px;"  # Zaokrąglenie paska przewijania
-            "}"
-            "QScrollBar::handle:vertical {"
-            "    background-color: #0D47A1;"
-            "    min-height: 20px;"
-            "    border-radius: 6px;"  # Zaokrąglenie uchwytu
-            "}"
-            "QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {"
-            "    background: none;"
-            "    height: 0px;"
-            "}"  # Usunięcie przycisków przewijania
-            "QScrollBar::add-page:vertical, QScrollBar::sub-page:vertical {"
-            "    background: none;"
-            "}"  # Ukrycie dodatkowego tła przewijania
         )
         self.language_selector.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.language_selector.currentTextChanged.connect(self.on_language_changed)
-        self.grid_layout.addWidget(self.language_selector, 0, 4, 1, 2)
+        self.grid_layout.addWidget(self.language_selector, 0, 2)
 
         # Przycisk "Wyczyść" (1,2)
         self.clear_button = QPushButton("Wyczyść")
@@ -246,7 +226,7 @@ class AudioTab(QWidget):
         )
         self.clear_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.clear_button.clicked.connect(self.clear_text)
-        self.grid_layout.addWidget(self.clear_button, 1, 4, 1, 2)
+        self.grid_layout.addWidget(self.clear_button, 1, 2)
 
         # Przycisk "Wyślij" (2,2)
         self.send_button = QPushButton("WYŚLIJ")
@@ -264,7 +244,7 @@ class AudioTab(QWidget):
         )
         self.send_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.send_button.clicked.connect(self.send_translated_command)
-        self.grid_layout.addWidget(self.send_button, 2, 4, 1, 2)
+        self.grid_layout.addWidget(self.send_button, 2, 2)
 
         # Gotowe zwroty (0,3) do (4,4)
         phrases = [
@@ -273,7 +253,7 @@ class AudioTab(QWidget):
             "AUTOMATYCZNY", "MANUALNY"
         ]
 
-        row, col = 0, 6
+        row, col = 0, 3
         for phrase in phrases:
             phrase_button = QPushButton(phrase)
             phrase_button.setFont(QFont("Arial", 10))
@@ -290,21 +270,13 @@ class AudioTab(QWidget):
             )
             phrase_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
             phrase_button.clicked.connect(lambda _, ph=phrase: self.send_translated_phrase(ph))
-            self.grid_layout.addWidget(phrase_button, row, col, 1, 2)
-            col += 2
-            if col > 8:
-                col = 6
+            self.grid_layout.addWidget(phrase_button, row, col)
+            col += 1
+            if col > 4:
+                col = 3
                 row += 1
 
         self.setLayout(self.grid_layout)
-
-    def update_time(self):
-        try:
-            self.current_time += 1
-            minutes, seconds = divmod(self.current_time, 60)
-            self.time_label.setText(f"{minutes:02}:{seconds:02}")
-        except Exception as e:
-            print(f"Error in update_time: {e}")
 
     def toggle_recording(self):
         if not self.recording:
@@ -314,7 +286,7 @@ class AudioTab(QWidget):
 
     def start_recording(self):
         try:
-            self.recording_status_label.setText("Nagrywanie")
+            self.audio_status_label.setPixmap(self.recorded_audio_icon.pixmap(50, 50))  # Ustaw ikonę
             self.stream = self.audio_interface.open(
                 format=pyaudio.paInt16,
                 channels=1,
@@ -325,7 +297,6 @@ class AudioTab(QWidget):
             self.frames = []
             self.recording = True
             self.current_time = 0
-            self.time_label.setText("00:00")  # Reset czasu
             self.timer.start(1000)
             self.record_button.setIcon(self.stop_icon)
 
@@ -358,25 +329,21 @@ class AudioTab(QWidget):
                 wf.setframerate(44100)
                 wf.writeframes(b"".join(self.frames))
 
-            self.recording_status_label.setText("Wstrzymano")
-            self.record_button.setIcon(self.record_icon)
+            self.audio_status_label.setPixmap(self.recorded_audio_icon.pixmap(50, 50))  # Ikona nagrania
             self.play_button.setEnabled(True)
             self.delete_button.setEnabled(True)
+            self.record_button.setIcon(self.record_icon)
         except Exception as e:
             print(f"Error in stop_recording: {e}")
 
     def toggle_playback(self):
         try:
-            # Jeśli odtwarzanie jest w toku, zatrzymaj ręcznie
             if self.playback_thread and self.playback_thread.isRunning():
-                self.stop_playback(finished=False)  # Ręczne zatrzymanie
+                self.stop_playback()
             else:
-                # Rozpocznij nowe odtwarzanie
-                self.recording_status_label.setText("Słuchanie audio")
                 self.play_button.setEnabled(False)
                 self.stop_button.setEnabled(True)
 
-                # Tworzenie i uruchamianie wątku odtwarzania
                 self.playback_thread = PlaybackThread(self.output_file, start_frame=self.playback_position)
                 self.playback_thread.playback_finished.connect(self.on_playback_finished)
                 self.playback_thread.start()
@@ -384,12 +351,10 @@ class AudioTab(QWidget):
             print(f"Error in toggle_playback: {e}")
 
     def on_playback_finished(self):
-        self.recording_status_label.setText("Odtwarzanie zakończone")
         if self.playback_thread:
             self.playback_position = self.playback_thread.current_frame  # Zachowanie pozycji
         self.play_button.setEnabled(True)
         self.stop_button.setEnabled(False)
-        self.playback_position = 0
         self.playback_thread = None
 
     def stop_playback(self):
@@ -398,7 +363,6 @@ class AudioTab(QWidget):
                 self.playback_thread.stop()
                 self.playback_thread.wait()
                 self.playback_position = self.playback_thread.current_frame  # Zachowanie pozycji
-                self.recording_status_label.setText("Odtwarzanie zatrzymane")
             self.play_button.setEnabled(True)
             self.stop_button.setEnabled(False)
         except Exception as e:
@@ -408,13 +372,21 @@ class AudioTab(QWidget):
         try:
             self.frames = []
             self.output_file = "recording.wav"
-            self.recording_status_label.setText("Usunięto audio")
-            self.time_label.setText("00:00")  # Reset czasu
-            self.current_time = 0
+            self.audio_status_label.setPixmap(self.recorded_audio_icon.pixmap(50, 50))  # Ustaw domyślną ikonę
             self.play_button.setEnabled(False)
             self.delete_button.setEnabled(False)
+            self.timer.stop()
+            self.current_time = 0
         except Exception as e:
             print(f"Error in delete_audio: {e}")
+
+    def update_time(self):
+        try:
+            self.current_time += 1
+            minutes, seconds = divmod(self.current_time, 60)
+            print(f"Czas nagrania: {minutes}:{seconds:02}")
+        except Exception as e:
+            print(f"Error in update_time: {e}")
 
     def clear_text(self):
         """Czyści pola tekstowe i tłumaczenia."""
@@ -430,34 +402,8 @@ class AudioTab(QWidget):
             self.send_command("AU " + translated_text)
         elif user_text:
             self.send_command("AU " + user_text)
-        elif os.path.exists(self.output_file):  # Sprawdzamy, czy plik audio istnieje
-            try:
-                # Pobierz rozmiar i nazwę pliku
-                file_name = os.path.basename(self.output_file)
-                file_size = os.path.getsize(self.output_file)
-
-                # Debug: Wyświetlenie informacji o pliku
-                print(f"[DEBUG] Plik odnaleziony: {file_name}")
-                print(f"[DEBUG] Rozmiar pliku: {file_size} bajtów")
-
-                # Wyślij metadane pliku
-                self.send_command(f"AU_FILE:{file_name}:{file_size}")
-                print(f"[DEBUG] Metadane pliku wysłane: AU_FILE:{file_name}:{file_size}")
-
-                # Wyślij zawartość pliku w porcjach
-                with open(self.output_file, "rb") as audio_file:
-                    while chunk := audio_file.read(1024):
-                        self.parent_window.client_socket.sendall(chunk)
-                        print(f"[DEBUG] Wysłano porcję danych: {len(chunk)} bajtów")
-
-                QMessageBox.information(self, "Sukces", "Plik audio został wysłany.")
-                print(f"[DEBUG] Wysyłanie pliku zakończone pomyślnie.")
-            except Exception as e:
-                print(f"[DEBUG] Błąd podczas wysyłania pliku: {e}")
-                QMessageBox.critical(self, "Błąd", f"Nie udało się wysłać pliku audio: {e}")
         else:
-            print("[DEBUG] Plik audio nie istnieje.")
-            QMessageBox.warning(self, "Błąd", "Plik audio nie istnieje. Nagrywaj dźwięk przed wysłaniem.")
+            QMessageBox.warning(self, "Błąd", "Pole tekstowe i tłumaczenie są puste. Wpisz tekst, aby go wysłać.")
 
     def send_translated_phrase(self, phrase):
         """Tłumaczy i wysyła wybraną frazę w odpowiednim języku."""
