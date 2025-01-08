@@ -478,7 +478,7 @@ class AudioTab(QWidget):
 
         try:
             translation = self.translator.translate(phrase, target_language)
-            self.send_command("TX " + translation.result)
+            self.send_command("AU " + translation.result)
             print(f"[DEBUG] Wysłano przetłumaczoną frazę ({self.language_selector.currentText()}): {translation.result}")
         except Exception as e:
             QMessageBox.critical(self, "Błąd", f"Nie udało się przetłumaczyć frazy: {e}")

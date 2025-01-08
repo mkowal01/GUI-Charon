@@ -36,7 +36,7 @@ class MainApp(QMainWindow):
 
         # Główne ustawienia okna
         self.setWindowTitle("Inżynierka Kowal&Śliwka")
-        self.setGeometry(100, 100, 800, 600)
+        self.setGeometry(100, 100, 1200, 800)
 
         # Główne widgety i layout
         self.central_widget = QWidget()
@@ -348,8 +348,16 @@ class MainApp(QMainWindow):
         self.content_widget.addWidget(start_widget)
 
     def show_main_ui(self):
-        self.header_widget.show()
-        self.content_widget.setCurrentIndex(1)
+        print("Próba ukrycia start_widget...")
+        self.start_widget.hide()  # Ukryj widżet startowy
+        print("Próba pokazania header_widget...")
+        self.header_widget.show()  # Pokaż pasek zakładek
+        print("Próba pokazania content_widget...")
+        self.content_widget.show()  # Pokaż zawartość głównych zakładek
+        print(f"Aktualne zakładki: {self.content_widget.count()}")  # Liczba zakładek
+        print("Przełączam na zakładkę 1 (Instrukcja obsługi)...")
+        self.content_widget.setCurrentIndex(1)  # Ustaw zakładkę "Instrukcja obsługi" jako aktywną
+        print("Zakładka aktywna.")
 
     def create_title_bar(self):
         """Tworzy tytułowy pasek aplikacji."""
@@ -455,20 +463,70 @@ class MainApp(QMainWindow):
         self.content_widget.setCurrentIndex(index + 1)
 
     def Video(self):
-        # Sprawdź, czy pole jest aktywne (czy przycisk ma tekst "AKTYWNE")
-        if self.video_button.text() == "AKTYWNE":
-            # Przywróć normalne wymiary okna
-            original_width = self.width() - 400  # Zmniejsz szerokość o 400 px
-            self.resize(original_width, self.height())
+        # Zapisanie pierwotnych wymiarów okna (raz na początku)
+        if not hasattr(self, 'original_width') or not hasattr(self, 'original_height'):
+            self.original_width = self.geometry().width()
+            self.original_height = self.geometry().height()
 
-            # Usuń placeholder (czarne pole) z układu
+        print(f"[DEBUG] Stan przycisku: {self.video_button.text()}")
+        print(
+            f"[DEBUG] Aktualne wymiary okna: szerokość={self.geometry().width()}, wysokość={self.geometry().height()}")
+
+        if self.video_button.text() == "AKTYWNE":
+            # Przywrócenie pierwotnych wymiarów okna
+            self.resize(self.original_width, self.original_height)
+            print(
+                f"[DEBUG] Wymiary okna po zmniejszeniu: szerokość={self.geometry().width()}, wysokość={self.geometry().height()}")
+
+            # Usuwanie placeholdera
             if hasattr(self, 'right_placeholder'):
                 self.content_layout.removeWidget(self.right_placeholder)
                 self.right_placeholder.deleteLater()
                 del self.right_placeholder
 
-            # Zmień przycisk na stan nieaktywny
+            # Zmiana stanu przycisku na "VIDEO"
             self.video_button.setStyleSheet("""
+                QPushButton {
+                    background-color: #FF605C;
+                    color: white;
+                    border-radius: 20px;
+                    padding: 5px 10px;
+                    border: 2px solid #388E3C;
+                }
+                QPushButton:hover {
+                    background-color: #FF3B30;
+                }
+                QPushButton:pressed {
+                    background-color: #FF605C;
+                }
+            """)
+            self.video_button.setText("VIDEO")
+            return
+
+        # Rozszerzenie okna
+        new_width = self.original_width + 400
+        self.resize(new_width, self.original_height)
+        print(
+            f"[DEBUG] Wymiary okna po rozszerzeniu: szerokość={self.geometry().width()}, wysokość={self.geometry().height()}")
+
+        # Dodanie placeholdera
+        self.right_placeholder = QWidget()
+        self.right_placeholder.setStyleSheet("""
+            background-color: #333;
+            border: 1px dashed #555;
+        """)
+
+        # Synchronizacja wysokości placeholdera z zawartością
+        current_height = self.content_widget.height()
+        self.right_placeholder.setFixedSize(380, current_height - 20)
+        print(
+            f"[DEBUG] Dodano placeholder o wymiarach: szerokość={self.right_placeholder.width()}, wysokość={self.right_placeholder.height()}")
+
+        # Dodanie placeholdera do układu
+        self.content_layout.addWidget(self.right_placeholder)
+
+        # Zmiana stanu przycisku na "AKTYWNE"
+        self.video_button.setStyleSheet("""
             QPushButton {
                 background-color: #FF605C;
                 color: white;
@@ -483,52 +541,7 @@ class MainApp(QMainWindow):
                 background-color: #FF605C;
             }
         """)
-            self.video_button.setText("VIDEO")  # Przywróć oryginalny tekst przycisku
-            return
-
-        # Jeśli pole nie jest aktywne, dodaj czarne pole i rozszerz okno
-        current_width = self.width()
-        current_height = self.content_widget.height()
-
-        # Zwiększ szerokość okna o 400 px
-        new_width = current_width + 400
-        self.resize(new_width, self.height())
-
-        # Stwórz pusty widget jako przestrzeń
-        self.right_placeholder = QWidget()
-        self.right_placeholder.setStyleSheet("""
-            background-color: #333;  /* Ciemnoszary kolor */
-            border: 1px dashed #555;  /* Opcjonalna ramka */
-        """)
-
-        # Synchronizuj wysokość czarnego pola z widgetem zawartości
-        self.right_placeholder.setFixedSize(380, current_height - 20)  # Odejmij marginesy z wysokości
-
-        # Ustaw marginesy w układzie
-        self.content_layout.setContentsMargins(0, 0, 10, 0)  # Marginesy 10px z każdej strony
-        self.content_layout.setSpacing(0)  # Odstępy między elementami
-
-        # Dodaj placeholder do układu horyzontalnego
-        self.content_layout.addWidget(self.right_placeholder)
-
-        # Zmień kolor i tekst przycisku "VIDEO"
-        self.video_button,(QFont("Arial", 18, QFont.Bold))
-        self.video_button.setStyleSheet("""
-            QPushButton {
-                background-color: #FF605C;  /* Czerwony odcień */
-                color: white;
-                border-radius: 20px;
-                padding: 5px 10px;
-                border: 2px solid #388E3C;  /* Zielona ramka */
-            }
-            QPushButton:hover {
-                background-color: #FF3B30;  /* Ciemniejszy czerwony */
-            }
-            QPushButton:pressed {
-                background-color: #FF605C;  /* Powrót do podstawowego koloru */
-            }
-        """)
-        self.video_button.setText("AKTYWNE")  # Zmieniamy tekst przycisku
+        self.video_button.setText("AKTYWNE")
 
     def open_connect_tab(self):
         """Otwiera dynamiczny formularz konfiguracji połączenia."""
