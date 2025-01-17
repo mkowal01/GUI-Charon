@@ -25,7 +25,7 @@
             <meta name="viewport" content="width=device-width,
                 initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
             <style>
-                #map_06fb8d17058ca77eeac23362613f190c {
+                #map_8bafe34abed92abd87162fd6f1e9b19b {
                     position: relative;
                     width: 100.0%;
                     height: 100.0%;
@@ -39,16 +39,16 @@
 <body>
     
     
-            <div class="folium-map" id="map_06fb8d17058ca77eeac23362613f190c" ></div>
+            <div class="folium-map" id="map_8bafe34abed92abd87162fd6f1e9b19b" ></div>
         
 </body>
 <script>
     
     
-            var map_06fb8d17058ca77eeac23362613f190c = L.map(
-                "map_06fb8d17058ca77eeac23362613f190c",
+            var map_8bafe34abed92abd87162fd6f1e9b19b = L.map(
+                "map_8bafe34abed92abd87162fd6f1e9b19b",
                 {
-                    center: [51.16004316666667, 17.137819],
+                    center: [52.2297, 21.0122],
                     crs: L.CRS.EPSG3857,
                     ...{
   "zoom": 15,
@@ -63,7 +63,7 @@
 
         
     
-            var tile_layer_50b429b5124a5cd4fff02a783ee94f0c = L.tileLayer(
+            var tile_layer_b4235d80cb56209684743504e0212b12 = L.tileLayer(
                 "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
                 {
   "minZoom": 0,
@@ -80,20 +80,24 @@
             );
         
     
-            tile_layer_50b429b5124a5cd4fff02a783ee94f0c.addTo(map_06fb8d17058ca77eeac23362613f190c);
+            tile_layer_b4235d80cb56209684743504e0212b12.addTo(map_8bafe34abed92abd87162fd6f1e9b19b);
         
     
-            var poly_line_ddedd979f3f2972552e98e974c68beaf = L.polyline(
-                [[51.16004316666667, 17.137819]],
-                {"bubblingMouseEvents": true, "color": "blue", "dashArray": null, "dashOffset": null, "fill": false, "fillColor": "blue", "fillOpacity": 0.2, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "noClip": false, "opacity": 1.0, "smoothFactor": 1.0, "stroke": true, "weight": 2.5}
-            ).addTo(map_06fb8d17058ca77eeac23362613f190c);
-        
-    
-            var marker_7d66ddc426dfa397e192ac28aebe5539 = L.marker(
-                [51.16004316666667, 17.137819],
+            var marker_f75122a17a26abbb973abc6c156acf46 = L.marker(
+                [52.2297, 21.0122],
                 {
 }
-            ).addTo(map_06fb8d17058ca77eeac23362613f190c);
+            ).addTo(map_8bafe34abed92abd87162fd6f1e9b19b);
+        
+    
+            marker_f75122a17a26abbb973abc6c156acf46.bindTooltip(
+                `<div>
+                     Lokalizacja
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
         
 </script>
 </html>

@@ -172,8 +172,9 @@ class ConnectTab(QWidget):
 
     def update_connection_fields(self):
         """Aktualizuje widoczność pól w zależności od wybranej metody połączenia."""
-        debug_print("connection_tab", f"Wybrano metodę połączenia: ", self.connection_type.currentText())
+        debug_print("connection_tab", f"Wybrano metodę połączenia: {self.connection_type.currentText()}")
         if self.connection_type.currentText() == "LoRa":
+            # Pokazujemy pola dla LoRa
             self.ip_label.hide()
             self.ip_input.hide()
             self.port_label.hide()
@@ -182,7 +183,14 @@ class ConnectTab(QWidget):
             self.com_port_input.show()
             self.baud_label.show()
             self.baud_rate_input.show()
+
+            # Ustawiamy domyślne wartości dla LoRa
+            if not self.com_port_input.text():  # Jeśli pole COM jest puste
+                self.com_port_input.setText("COM8")
+            if not self.baud_rate_input.text():  # Jeśli pole Baud Rate jest puste
+                self.baud_rate_input.setText("9600")
         else:
+            # Pokazujemy pola dla Socket/WiFi/Ethernet
             self.com_label.hide()
             self.com_port_input.hide()
             self.baud_label.hide()
