@@ -1,8 +1,9 @@
 import os
 import sys
 import socket
-from PyQt5.QtWidgets import (QApplication, QMainWindow, QTabBar, QPushButton, QVBoxLayout, QLabel, QWidget, QHBoxLayout, QStackedWidget, QLineEdit, QFrame, QComboBox)
-from PyQt5.QtCore import Qt, QTimer, QPropertyAnimation, pyqtProperty, QTime, QThread, pyqtSignal
+from PyQt5.QtWidgets import (QApplication, QMainWindow, QTabBar, QPushButton, QVBoxLayout, QLabel, QWidget, QHBoxLayout,
+                             QStackedWidget, QLineEdit, QFrame, QComboBox)
+from PyQt5.QtCore import Qt, QTimer, QPropertyAnimation, pyqtProperty, QTime
 from PyQt5.QtGui import QFont, QPixmap, QColor
 
 # Import klas z zewnętrznych plików
@@ -35,7 +36,7 @@ class MainApp(QMainWindow):
 
         # Główne ustawienia okna
         self.setWindowTitle("Inżynierka Kowal&Śliwka")
-        self.setGeometry(100, 100, 1200, 800)
+        self.setGeometry(100, 100, 1200, 600)
 
         # Główne widgety i layout
         self.central_widget = QWidget()
@@ -66,7 +67,7 @@ class MainApp(QMainWindow):
 
         # Pasek tytułu: elementy
         title_layout = QHBoxLayout()
-        title_layout.setContentsMargins(10, 0, 10, 0)
+        title_layout.setContentsMargins(0, 0, 10, 0)
         title_layout.setSpacing(5)
 
         # Tytuł aplikacji
@@ -124,7 +125,7 @@ class MainApp(QMainWindow):
         self.title_bar.setLayout(title_layout)
         self.main_layout.addWidget(self.title_bar)
 
-        # Pasek zakładek i przycisk
+        # Pasek zakładek i przyciski
         self.header_widget = QWidget()
         self.header_layout = QHBoxLayout()
         self.header_widget.setLayout(self.header_layout)
@@ -139,6 +140,26 @@ class MainApp(QMainWindow):
         self.tab_bar.addTab("INSTRUKCJA OBSŁUGI")
         self.tab_bar.addTab("O NAS")
         self.tab_bar.currentChanged.connect(self.change_tab)
+
+        # Przyciski na pasku zakładek
+        self.video_button = QPushButton("VIDEO")
+        self.video_button.setFont(QFont("Arial", 18, QFont.Bold))
+        self.video_button.setFixedSize(150, 50)
+        self.video_button.setStyleSheet("""
+            QPushButton {
+                background-color: #388E3C;
+                color: white;
+                border-radius: 20px;
+                border: 2px solid #388E3C;
+            }
+            QPushButton:hover {
+                background-color: #1976D2;
+            }
+            QPushButton:pressed {
+                background-color: #388E3C;
+            }
+        """)
+        self.video_button.clicked.connect(self.Video)
 
         self.connect_button = QPushButton("POŁĄCZ")
         self.connect_button.setFont(QFont("Arial", 18, QFont.Bold))
@@ -161,20 +182,24 @@ class MainApp(QMainWindow):
 
         self.header_layout.addWidget(self.tab_bar)
         self.header_layout.addStretch()
+        self.header_layout.addWidget(self.video_button)
         self.header_layout.addWidget(self.connect_button)
 
         self.main_layout.addWidget(self.header_widget)
 
-        # Zawartość zakładek i strony startowej
+        # Zawartość aplikacji
+        self.content_layout = QHBoxLayout()
+        self.main_layout.addLayout(self.content_layout)
+
         self.content_widget = QStackedWidget()
         self.add_start_page()
-        self.content_widget.addWidget(TextTab())  # TEXT
-        self.content_widget.addWidget(AudioTab())  # AUDIO
-        self.content_widget.addWidget(LocalizationTab())  # LOKALIZACJA
+        self.content_widget.addWidget(TextTab(self))  # TEXT
+        self.content_widget.addWidget(AudioTab(self))  # AUDIO
+        self.content_widget.addWidget(LocalizationTab(self))  # LOKALIZACJA
         self.content_widget.addWidget(ManualTab())  # INSTRUKCJA OBSŁUGI
         self.content_widget.addWidget(AboutTab())  # O NAS
-        self.main_layout.addWidget(self.content_widget)
-        self.header_widget.hide()
+
+        self.content_layout.addWidget(self.content_widget)
 
         # Animacja tła
         self.colors = [
@@ -324,7 +349,7 @@ class MainApp(QMainWindow):
 
     def show_main_ui(self):
         self.header_widget.show()
-        self.content_widget.setCurrentIndex(4)
+        self.content_widget.setCurrentIndex(1)
 
     def create_title_bar(self):
         """Tworzy tytułowy pasek aplikacji."""
@@ -429,15 +454,93 @@ class MainApp(QMainWindow):
         """Zmiana zakładki w zależności od wybranego indeksu."""
         self.content_widget.setCurrentIndex(index + 1)
 
+    def Video(self):
+        # Sprawdź, czy pole jest aktywne (czy przycisk ma tekst "AKTYWNE")
+        if self.video_button.text() == "AKTYWNE":
+            # Przywróć normalne wymiary okna
+            original_width = self.width() - 400  # Zmniejsz szerokość o 400 px
+            self.resize(original_width, self.height())
+
+            # Usuń placeholder (czarne pole) z układu
+            if hasattr(self, 'right_placeholder'):
+                self.content_layout.removeWidget(self.right_placeholder)
+                self.right_placeholder.deleteLater()
+                del self.right_placeholder
+
+            # Zmień przycisk na stan nieaktywny
+            self.video_button.setStyleSheet("""
+            QPushButton {
+                background-color: #FF605C;
+                color: white;
+                border-radius: 20px;
+                padding: 5px 10px;
+                border: 2px solid #388E3C;
+            }
+            QPushButton:hover {
+                background-color: #FF3B30;
+            }
+            QPushButton:pressed {
+                background-color: #FF605C;
+            }
+        """)
+            self.video_button.setText("VIDEO")  # Przywróć oryginalny tekst przycisku
+            return
+
+        # Jeśli pole nie jest aktywne, dodaj czarne pole i rozszerz okno
+        current_width = self.width()
+        current_height = self.content_widget.height()
+
+        # Zwiększ szerokość okna o 400 px
+        new_width = current_width + 400
+        self.resize(new_width, self.height())
+
+        # Stwórz pusty widget jako przestrzeń
+        self.right_placeholder = QWidget()
+        self.right_placeholder.setStyleSheet("""
+            background-color: #333;  /* Ciemnoszary kolor */
+            border: 1px dashed #555;  /* Opcjonalna ramka */
+        """)
+
+        # Synchronizuj wysokość czarnego pola z widgetem zawartości
+        self.right_placeholder.setFixedSize(380, current_height - 20)  # Odejmij marginesy z wysokości
+
+        # Ustaw marginesy w układzie
+        self.content_layout.setContentsMargins(0, 0, 10, 0)  # Marginesy 10px z każdej strony
+        self.content_layout.setSpacing(0)  # Odstępy między elementami
+
+        # Dodaj placeholder do układu horyzontalnego
+        self.content_layout.addWidget(self.right_placeholder)
+
+        # Zmień kolor i tekst przycisku "VIDEO"
+        self.video_button,(QFont("Arial", 18, QFont.Bold))
+        self.video_button.setStyleSheet("""
+            QPushButton {
+                background-color: #FF605C;  /* Czerwony odcień */
+                color: white;
+                border-radius: 20px;
+                padding: 5px 10px;
+                border: 2px solid #388E3C;  /* Zielona ramka */
+            }
+            QPushButton:hover {
+                background-color: #FF3B30;  /* Ciemniejszy czerwony */
+            }
+            QPushButton:pressed {
+                background-color: #FF605C;  /* Powrót do podstawowego koloru */
+            }
+        """)
+        self.video_button.setText("AKTYWNE")  # Zmieniamy tekst przycisku
+
     def open_connect_tab(self):
         """Otwiera dynamiczny formularz konfiguracji połączenia."""
         # Ukrycie paska zakładek zamiast usuwania
         self.tab_bar.hide()
+        if hasattr(self, 'video_button'):
+            self.video_button.hide()
 
         # Czyszczenie istniejącego układu dynamicznych elementów
         for i in reversed(range(self.header_layout.count())):
             widget = self.header_layout.itemAt(i).widget()
-            if widget and widget != self.tab_bar:  # Nie usuwaj paska zakładek
+            if widget and widget not in [self.tab_bar, self.video_button]:  # Nie usuwaj paska zakładek i przycisku VIDEO
                 widget.deleteLater()
 
         # Dodanie listy rozwijanej z opcjami
@@ -707,7 +810,7 @@ class MainApp(QMainWindow):
         self.log_area.hide()
 
         # Dodanie przycisku „Rozłącz”
-        self.disconnect_button = QPushButton("Rozłącz")
+        self.disconnect_button = QPushButton("ROZŁĄCZ")
         self.disconnect_button.setFont(QFont("Arial", 18, QFont.Bold))
         self.disconnect_button.setFixedSize(150, 50)  # Dopasowanie wielkości
         self.disconnect_button.setStyleSheet("""
@@ -726,10 +829,13 @@ class MainApp(QMainWindow):
             }
         """)
         self.disconnect_button.clicked.connect(self.handle_disconnect)
+        if hasattr(self, 'video_button') and not self.header_layout.findChild(QPushButton, "VIDEO"):
+            self.header_layout.addWidget(self.video_button)
+        self.video_button.show()
         self.header_layout.addWidget(self.disconnect_button)
 
         # Powrót do głównego interfejsu
-        self.tab_bar.show()
+        self.tab_bar.show()  # Pokaż pasek zakładek
         self.show_main_ui()
 
     def on_connection_success(self, message):
