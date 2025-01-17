@@ -3,7 +3,7 @@ import sys
 import socket
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QTabBar, QPushButton, QVBoxLayout, QLabel, QWidget, QHBoxLayout,
                              QStackedWidget, QLineEdit, QFrame, QComboBox)
-from PyQt5.QtCore import Qt, QTimer, QPropertyAnimation, pyqtProperty, QTime, QThread, pyqtSignal
+from PyQt5.QtCore import Qt, QTimer, QPropertyAnimation, pyqtProperty, QTime
 from PyQt5.QtGui import QFont, QPixmap, QColor
 
 # Import klas z zewnętrznych plików

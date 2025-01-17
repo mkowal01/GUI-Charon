@@ -1,189 +1,256 @@
-from PyQt5.QtWidgets import QWidget, QVBoxLayout, QComboBox, QLabel, QLineEdit, QPushButton, QFrame
+from PyQt5.QtWidgets import QWidget, QVBoxLayout, QLabel, QComboBox, QLineEdit, QPushButton, QHBoxLayout
 from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QFont
 import socket
-
+import serial
+from Debuger import debug_print
 
 class ConnectTab(QWidget):
-    def __init__(self, connect_button, disconnect_button, show_main_ui_callback):
-        super().__init__()
+    def __init__(self, parent=None):
+        super().__init__(parent)
 
-        self.connect_button = connect_button
-        self.disconnect_button = disconnect_button
-        self.show_main_ui_callback = show_main_ui_callback  # Funkcja powrotu do głównego interfejsu
-        self.client_socket = None
+        self.parent = parent
+        self.connected = False  # Stan połączenia
+        debug_print("connection_tab", f"connection")
+        debug_print("connection_tab", f"Inicjalizacja ConnectTab")
 
-        self.connection_type_dropdown = None
-        self.ip_field = None
-        self.port_field = None
-        self.com_port_field = None
-        self.baud_rate_field = None
-        self.log_area = None
+        # Layout główny zakładki
+        self.main_layout = QVBoxLayout()
+        self.setLayout(self.main_layout)
 
-        # Główny layout
-        self.layout = QVBoxLayout()
-        self.layout.setContentsMargins(10, 10, 10, 10)
-        self.setLayout(self.layout)
+        # Layout dla wyboru trybu połączenia (nad zakładkami)
+        self.connection_bar = QWidget()
+        self.connection_bar.setFixedHeight(60)
+        self.connection_bar_layout = QHBoxLayout()
+        self.connection_bar_layout.setContentsMargins(10, 0, 10, 0)
+        self.connection_bar_layout.setSpacing(10)
+        self.connection_bar.setLayout(self.connection_bar_layout)
 
-        # Inicjalizacja UI
-        self.setup_ui()
-
-    def setup_ui(self):
-        """Konfiguruje początkowy interfejs użytkownika."""
-        # Lista rozwijana dla typu połączenia
-        self.connection_type_dropdown = QComboBox()
-        self.connection_type_dropdown.addItems(["Nieustawiono", "LoRa", "WiFi", "Ethernet", "Socket"])
-        self.connection_type_dropdown.currentIndexChanged.connect(self.update_connection_form)
-        self.layout.addWidget(self.connection_type_dropdown)
-
-        # Dynamiczny formularz
-        self.connection_form = QWidget()
-        self.connection_form_layout = QVBoxLayout()
-        self.connection_form.setLayout(self.connection_form_layout)
-        self.layout.addWidget(self.connection_form)
-
-        # Separator
-        self.separator_line = QFrame()
-        self.separator_line.setFrameShape(QFrame.HLine)
-        self.separator_line.setFrameShadow(QFrame.Sunken)
-        self.layout.addWidget(self.separator_line)
-
-        # Logi
-        self.log_area = QLabel("Logi połączenia:")
-        self.log_area.setStyleSheet("""
-            background-color: #333;
-            color: white;
-            font-size: 14px;
-            padding: 10px;
-            border: 1px solid #555;
-            border-radius: 5px;
-        """)
-        self.log_area.setWordWrap(True)
-        self.layout.addWidget(self.log_area)
-
-        # Inicjalizacja formularza
-        self.update_connection_form(0)
-
-    def update_connection_form(self, index):
-        """Aktualizacja dynamicznego formularza w zależności od wybranego typu połączenia."""
-        # Czyszczenie dynamicznych widżetów
-        while self.connection_form_layout.count():
-            item = self.connection_form_layout.takeAt(0)
-            widget = item.widget()
-            if widget:
-                widget.deleteLater()
-
-        # Styl pól tekstowych
-        common_style = """
-            QLineEdit {
-                border: 1px solid #C0C0C0;
+        # Dropdown wyboru metody połączenia
+        self.connection_type = QComboBox()
+        self.connection_type.addItems(["Socket/WiFi/Ethernet", "LoRa"])
+        self.connection_type.setFixedSize(200, 40)
+        self.connection_type.setStyleSheet("""
+            QComboBox {
+                border: 2px solid #1976D2;
                 border-radius: 5px;
                 padding: 5px;
-                background-color: #FFFFFF;
-                color: #000000;
-            }
-            QLineEdit:focus {
-                border: 1px solid #1976D2;
-            }
-        """
-
-        if index == 0:  # Nieustawiono
-            self.connection_form_layout.addWidget(QLabel("Wybierz typ połączenia z listy powyżej."))
-
-        elif index == 1:  # LoRa
-            self.connection_form_layout.addWidget(QLabel("LoRa Settings"))
-            self.com_port_field = QLineEdit()
-            self.com_port_field.setPlaceholderText("np. COM3")
-            self.com_port_field.setStyleSheet(common_style)
-            self.connection_form_layout.addWidget(self.com_port_field)
-
-            self.baud_rate_field = QLineEdit()
-            self.baud_rate_field.setPlaceholderText("np. 9600")
-            self.baud_rate_field.setStyleSheet(common_style)
-            self.connection_form_layout.addWidget(self.baud_rate_field)
-
-        elif index in [2, 3, 4]:  # WiFi, Ethernet, Socket
-            self.connection_form_layout.addWidget(QLabel("Adres IP:"))
-            self.ip_field = QLineEdit()
-            self.ip_field.setPlaceholderText("np. 127.0.0.1")
-            self.ip_field.setStyleSheet(common_style)
-            self.connection_form_layout.addWidget(self.ip_field)
-
-            self.connection_form_layout.addWidget(QLabel("Port:"))
-            self.port_field = QLineEdit()
-            self.port_field.setPlaceholderText("np. 12345")
-            self.port_field.setStyleSheet(common_style)
-            self.connection_form_layout.addWidget(self.port_field)
-
-        # Dodanie przycisku "Zatwierdź"
-        confirm_button = QPushButton("Zatwierdź")
-        confirm_button.setStyleSheet("""
-            QPushButton {
-                background-color: #388E3C;
+                font-size: 14px;
                 color: white;
-                border-radius: 15px;
-                padding: 10px;
+                background-color: #121212;
+            }
+            QComboBox::drop-down {
+                border: 0px;
+            }
+        """)
+        self.connection_type.currentIndexChanged.connect(self.update_connection_fields)
+        self.connection_bar_layout.addWidget(self.connection_type)
+
+        # Pole do wpisywania IP (dla Socket/WiFi/Ethernet)
+        self.ip_label = QLabel("IP Address:")
+        self.ip_label.setStyleSheet("color: white; font-size: 14px;")
+        self.ip_input = QLineEdit()
+        self.ip_input.setPlaceholderText("127.0.0.1")
+        self.ip_input.setFixedSize(150, 40)
+        self.ip_input.setStyleSheet("""
+            QLineEdit {
+                border: 2px solid #1976D2;
+                border-radius: 5px;
+                padding: 5px;
+                font-size: 14px;
+                color: white;
+                background-color: #121212;
+            }
+        """)
+        self.connection_bar_layout.addWidget(self.ip_label)
+        self.connection_bar_layout.addWidget(self.ip_input)
+
+        # Pole do wpisywania Portu (dla Socket/WiFi/Ethernet)
+        self.port_label = QLabel("Port:")
+        self.port_label.setStyleSheet("color: white; font-size: 14px;")
+        self.port_input = QLineEdit()
+        self.port_input.setPlaceholderText("12345")
+        self.port_input.setFixedSize(150, 40)
+        self.port_input.setStyleSheet("""
+            QLineEdit {
+                border: 2px solid #1976D2;
+                border-radius: 5px;
+                padding: 5px;
+                font-size: 14px;
+                color: white;
+                background-color: #121212;
+            }
+        """)
+        self.connection_bar_layout.addWidget(self.port_label)
+        self.connection_bar_layout.addWidget(self.port_input)
+
+        # Pole do wpisywania COM (dla LoRa)
+        self.com_label = QLabel("Podaj COM:")
+        self.com_label.setStyleSheet("color: white; font-size: 14px;")
+        self.com_port_input = QLineEdit()
+        self.com_port_input.setPlaceholderText("Podaj COM")
+        self.com_port_input.setFixedSize(150, 40)
+        self.com_port_input.setStyleSheet("""
+            QLineEdit {
+                border: 2px solid #1976D2;
+                border-radius: 5px;
+                padding: 5px;
+                font-size: 14px;
+                color: white;
+                background-color: #121212;
+            }
+        """)
+        self.connection_bar_layout.addWidget(self.com_label)
+        self.connection_bar_layout.addWidget(self.com_port_input)
+
+        # Pole do wpisywania Baud Rate (dla LoRa)
+        self.baud_label = QLabel("Baud Rate:")
+        self.baud_label.setStyleSheet("color: white; font-size: 14px;")
+        self.baud_rate_input = QLineEdit()
+        self.baud_rate_input.setPlaceholderText("Baud Rate")
+        self.baud_rate_input.setFixedSize(150, 40)
+        self.baud_rate_input.setStyleSheet("""
+            QLineEdit {
+                border: 2px solid #1976D2;
+                border-radius: 5px;
+                padding: 5px;
+                font-size: 14px;
+                color: white;
+                background-color: #121212;
+            }
+        """)
+        self.connection_bar_layout.addWidget(self.baud_label)
+        self.connection_bar_layout.addWidget(self.baud_rate_input)
+
+        # Przycisk zatwierdzenia
+        self.confirm_button = QPushButton("Zatwierdź")
+        self.confirm_button.setFixedSize(150, 40)
+        self.confirm_button.setStyleSheet("""
+            QPushButton {
+                background-color: #1976D2;
+                color: white;
+                border-radius: 10px;
+                border: 2px solid #1976D2;
             }
             QPushButton:hover {
-                background-color: #1976D2;
-            }
-            QPushButton:pressed {
                 background-color: #388E3C;
             }
         """)
-        confirm_button.clicked.connect(self.handle_connection)
-        self.connection_form_layout.addWidget(confirm_button)
+        self.confirm_button.clicked.connect(self.toggle_connection)
+        self.connection_bar_layout.addWidget(self.confirm_button)
 
-    def handle_connection(self):
-        """Obsługa logiki połączenia w zależności od wybranego typu."""
-        connection_type = self.connection_type_dropdown.currentText()
+        # Przycisk powrotu do głównego widoku
+        self.back_button = QPushButton("Wróć")
+        self.back_button.setFixedSize(150, 40)
+        self.back_button.setStyleSheet("""
+            QPushButton {
+                background-color: #FF6F00;
+                color: white;
+                border-radius: 10px;
+                border: 2px solid #FF6F00;
+            }
+            QPushButton:hover {
+                background-color: #FF8C00;
+            }
+        """)
+        self.back_button.clicked.connect(self.go_back_to_main)
+        self.connection_bar_layout.addWidget(self.back_button)
 
-        if connection_type == "Socket":
-            ip = self.ip_field.text() if self.ip_field else None
-            port = self.port_field.text() if self.port_field else None
+        # Komunikat o stanie połączenia
+        self.status_label = QLabel("Nie połączono")
+        self.status_label.setAlignment(Qt.AlignCenter)
+        self.status_label.setStyleSheet("font-size: 18px; color: red;")
+        self.main_layout.addWidget(self.connection_bar)
+        self.main_layout.addWidget(self.status_label)
 
-            if not ip or not port:
-                self.log_area.setText(self.log_area.text() + "\n[Socket] Adres IP i port muszą być podane!")
-                return
+        # Ukrycie pól dla LoRa na starcie
+        self.com_label.hide()
+        self.com_port_input.hide()
+        self.baud_label.hide()
+        self.baud_rate_input.hide()
 
-            try:
-                self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-                self.client_socket.connect((ip, int(port)))
-                self.log_area.setText(self.log_area.text() + f"\n[Socket] Połączono z {ip}:{port}.")
-                self.finalize_connection()
-            except Exception as e:
-                self.log_area.setText(self.log_area.text() + f"\n[Socket] Błąd połączenia: {e}")
+        debug_print("connection_tab", f"ConnectTab zainicjalizowany poprawnie")
 
-        elif connection_type == "WiFi":
-            self.log_area.setText(self.log_area.text() + "\n[WiFi] Obsługa WiFi jeszcze niezaimplementowana.")
-        elif connection_type == "LoRa":
-            self.log_area.setText(self.log_area.text() + "\n[LoRa] Obsługa LoRa jeszcze niezaimplementowana.")
-        elif connection_type == "Ethernet":
-            self.log_area.setText(self.log_area.text() + "\n[Ethernet] Obsługa Ethernet jeszcze niezaimplementowana.")
+    def update_connection_fields(self):
+        """Aktualizuje widoczność pól w zależności od wybranej metody połączenia."""
+        debug_print("connection_tab", f"Wybrano metodę połączenia: ", self.connection_type.currentText())
+        if self.connection_type.currentText() == "LoRa":
+            self.ip_label.hide()
+            self.ip_input.hide()
+            self.port_label.hide()
+            self.port_input.hide()
+            self.com_label.show()
+            self.com_port_input.show()
+            self.baud_label.show()
+            self.baud_rate_input.show()
         else:
-            self.log_area.setText(self.log_area.text() + "\n[Nieustawiono] Nie wybrano żadnego typu połączenia.")
+            self.com_label.hide()
+            self.com_port_input.hide()
+            self.baud_label.hide()
+            self.baud_rate_input.hide()
+            self.ip_label.show()
+            self.ip_input.show()
+            self.port_label.show()
+            self.port_input.show()
 
-    def finalize_connection(self):
-        """Przełączenie interfejsu po udanym połączeniu."""
-        self.connect_button.hide()
-        self.disconnect_button.show()
+    def toggle_connection(self):
+        """Obsługuje nawiązywanie i rozłączanie połączenia."""
+        if self.connected:
+            self.disconnect()
+        else:
+            self.confirm_connection()
 
-        # Powrót do głównego interfejsu
-        if callable(self.show_main_ui_callback):
-            self.show_main_ui_callback()
-
-    def handle_disconnect(self):
-        """Rozłącza istniejące połączenie."""
+    def confirm_connection(self):
+        """Nawiązuje połączenie w zależności od wybranej metody."""
+        connection_type = self.connection_type.currentText()
+        debug_print("connection_tab", f"Wybrano metodę połączenia: {connection_type}")
         try:
-            if self.client_socket:
-                self.client_socket.close()
-                self.client_socket = None
-                self.log_area.setText(self.log_area.text() + "\n[Socket] Połączenie zostało rozłączone.")
+            if connection_type == "Socket/WiFi/Ethernet":
+                ip_address = self.ip_input.text() or "127.0.0.1"
+                port = int(self.port_input.text() or "12345")
+                self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                self.sock.settimeout(5)  # Timeout 5 sekund
+                self.sock.connect((ip_address, port))
+                self.status_label.setText(f"Połączono z {ip_address}:{port}")
+                self.status_label.setStyleSheet("font-size: 18px; color: green;")
+                self.confirm_button.setText("Rozłącz")
+                self.connected = True
+                debug_print("connection_tab", f"Połączono z {ip_address}:{port}")
+            elif connection_type == "LoRa":
+                com_port = self.com_port_input.text()
+                baud_rate = int(self.baud_rate_input.text())
+                self.serial_conn = serial.Serial(com_port, baud_rate, timeout=2)
+                self.status_label.setText(f"Połączono z LoRa (COM: {com_port}, Baud: {baud_rate})")
+                self.status_label.setStyleSheet("font-size: 18px; color: green;")
+                self.confirm_button.setText("Rozłącz")
+                self.connected = True
+                debug_print("connection_tab", f"Połączono z LoRa (COM: {com_port}, Baud: {baud_rate})")
             else:
-                self.log_area.setText(self.log_area.text() + "\n[Socket] Nie ma aktywnego połączenia.")
+                self.status_label.setText("Nieznana metoda połączenia")
+                self.status_label.setStyleSheet("font-size: 18px; color: red;")
         except Exception as e:
-            self.log_area.setText(self.log_area.text() + f"\n[Socket] Błąd podczas rozłączania: {e}")
+            self.status_label.setText(f"Błąd połączenia: {e}")
+            self.status_label.setStyleSheet("font-size: 18px; color: red;")
+            debug_print("connection_tab", f"Nie udało się połączyć: {e}")
 
-        # Przywrócenie przycisku "Połącz"
-        self.connect_button.show()
-        self.disconnect_button.hide()
+    def disconnect(self):
+        """Rozłącza aktywne połączenie."""
+        try:
+            if self.connection_type.currentText() == "Socket/WiFi/Ethernet" and hasattr(self, 'sock'):
+                self.sock.close()
+                debug_print("connection_tab", f"Rozłączono z Socket/WiFi/Ethernet")
+            elif self.connection_type.currentText() == "LoRa" and hasattr(self, 'serial_conn'):
+                self.serial_conn.close()
+                debug_print("connection_tab", f"Rozłączono z LoRa")
+            self.status_label.setText("Nie połączono")
+            self.status_label.setStyleSheet("font-size: 18px; color: red;")
+            self.confirm_button.setText("Zatwierdź")
+            self.connected = False
+        except Exception as e:
+            debug_print("connection_tab", f"[ERROR] Nie udało się rozłączyć: {e}")
+
+    def go_back_to_main(self):
+        """Powrót do głównego widoku aplikacji."""
+        debug_print("connection_tab", f"Powrót do głównego widoku")
+        if self.parent:
+            self.parent.show_main_ui()
+            self.parent.update_connect_button("Rozłącz" if self.connected else "Połącz")

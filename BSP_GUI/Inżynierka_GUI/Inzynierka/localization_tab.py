@@ -1,264 +1,364 @@
-from PyQt5.QtWidgets import QWidget, QGridLayout, QTextEdit, QComboBox, QSizePolicy, QPushButton, QMessageBox
+from PyQt5.QtWidgets import QWidget, QGridLayout, QPushButton, QLineEdit, QTextEdit, QLabel, QSizePolicy, QMessageBox
+from PyQt5.QtWebEngineWidgets import QWebEngineView
 from PyQt5.QtGui import QFont
-from PyQt5.QtCore import Qt
-from translatepy import Translate
+from PyQt5.QtCore import Qt, QUrl, QTimer, QThread, pyqtSignal
+import folium
+import os
+import re
+from Debuger import debug_print
+from geopy.distance import geodesic
+from datetime import datetime
 
+class ResponseThread(QThread):
+    response_received = pyqtSignal(str)
+
+    def __init__(self, connection):
+        super().__init__()
+        self.connection = connection
+        self.running = True
+        debug_print("ResponseThread", "Inicjalizacja wątku odbierania odpowiedzi")
+
+    def run(self):
+        while self.running:
+            try:
+                data = self.connection.recv(1024)
+                if not data:
+                    debug_print("ResponseThread", "Brak danych, zakończenie wątku")
+                    break
+                message = data.decode('utf-8').strip()
+                debug_print("ResponseThread", f"Odebrano wiadomość: {message}")
+                self.response_received.emit(message)
+            except Exception as e:
+                debug_print("ResponseThread", f"Błąd podczas odbierania danych: {e}")
+                break
+
+    def stop(self):
+        debug_print("ResponseThread", "Zatrzymanie wątku odbierania odpowiedzi")
+        self.running = False
 
 class LocalizationTab(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.parent_window = parent
+        debug_print("localization_tab", "Inicjalizacja LocalizationTab")
 
-        print("Inicjalizacja AudioTab")
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.update_logs_from_source)
+        # Inicjalizacja zmiennych
+        self.response_thread = None
+        self.previous_coordinates = None
+        self.previous_time = None
+        self.gps_positions = []  # Dodanie brakującej listy gps_positions
 
-        # Inicjalizacja obiektu Translate
-        self.translator = Translate()
-
-        # Główny layout siatki
         self.grid_layout = QGridLayout()
-        self.grid_layout.setSpacing(10)
+        self.grid_layout.setSpacing(5)
         self.grid_layout.setContentsMargins(10, 10, 10, 10)
 
-        # Pole do wpisywania tekstu (0,0) do (1,1)
-        self.text_input = QTextEdit()
-        self.text_input.setFont(QFont("Arial", 16))
-        self.text_input.setPlaceholderText("Pole do wpisania tekstu")
-        self.text_input.setStyleSheet("background-color: white; border: 1px solid black; border-radius: 10px;")
-        self.text_input.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.grid_layout.addWidget(self.text_input, 0, 0, 2, 2)
+        for i in range(7):
+            self.grid_layout.setRowStretch(i, 1)
+        for j in range(7):
+            self.grid_layout.setColumnStretch(j, 1)
 
-        # Pole do wyświetlania tłumaczenia (2,0) do (3,1)
-        self.translation_display = QTextEdit()
-        self.translation_display.setFont(QFont("Arial", 16))
-        self.translation_display.setReadOnly(True)
-        self.translation_display.setStyleSheet("background-color: white; border: 1px solid black; border-radius: 10px;")
-        self.translation_display.setPlaceholderText("Tutaj pojawi się tłumaczenie...")
-        self.translation_display.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.grid_layout.addWidget(self.translation_display, 2, 0, 2, 2)
+        self.map_view = QWebEngineView()
+        self.map_view.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.map_file = os.path.join(os.getcwd(), "map.html")
+        debug_print("localization_tab", f"Ścieżka pliku mapy: {self.map_file}")
+        self.grid_layout.addWidget(self.map_view, 0, 0, 4, 6)
 
-        # Przycisk do nagrywania (4,0)
-        self.record_button = QPushButton("Nagrywanie")
-        self.record_button.setFont(QFont("Arial", 12))
-        self.record_button.setStyleSheet(
+        self.logs_widget = QTextEdit()
+        self.logs_widget.setReadOnly(True)
+        self.logs_widget.setFont(QFont("Arial", 10))
+        self.logs_widget.setPlaceholderText("Logi będą wyświetlane tutaj...")
+        self.logs_widget.setStyleSheet(
+            "background-color: #1E1E1E; color: white; border: 2px solid #6a5f31; border-radius: 10px; padding: 5px;")
+        self.logs_widget.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+        self.grid_layout.addWidget(self.logs_widget, 4, 0, 3, 6)
+
+        button_size = QSizePolicy.Expanding
+        button_style = (
             "QPushButton {"
-            "    background-color: lightgreen;"
-            "    border: 1px solid black;"
-            "    border-radius: 10px;"
+            "    background-color: #1E1E1E; color: white; border: 2px solid #6a5f31; border-radius: 10px; padding: 5px;"
             "}"
             "QPushButton:hover {"
-            "    background-color: green;"
-            "    color: white;"
+            "    background-color: #6a5f31; color: black;"
             "}"
         )
-        self.record_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.grid_layout.addWidget(self.record_button, 4, 0)
 
-        # Przycisk do odtwarzania (4,1)
-        self.play_button = QPushButton("Odtwarzanie nagrania")
-        self.play_button.setFont(QFont("Arial", 12))
-        self.play_button.setStyleSheet(
-            "QPushButton {"
-            "    background-color: lightblue;"
-            "    border: 1px solid black;"
-            "    border-radius: 10px;"
-            "}"
-            "QPushButton:hover {"
-            "    background-color: blue;"
-            "    color: white;"
-            "}"
-        )
-        self.play_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.grid_layout.addWidget(self.play_button, 4, 1)
+        self.start_button = QPushButton("Start")
+        self.start_button.setSizePolicy(button_size, button_size)
+        self.start_button.setStyleSheet(button_style)
+        self.start_button.clicked.connect(self.handle_start_button)
+        self.grid_layout.addWidget(self.start_button, 0, 6, 1, 1)
 
-        # Przycisk do kasowania nagrania (4,2)
-        self.delete_button = QPushButton("Kasowanie nagrania")
-        self.delete_button.setFont(QFont("Arial", 12))
-        self.delete_button.setStyleSheet(
-            "QPushButton {"
-            "    background-color: lightcoral;"
-            "    border: 1px solid black;"
-            "    border-radius: 10px;"
-            "}"
-            "QPushButton:hover {"
-            "    background-color: red;"
-            "    color: white;"
-            "}"
-        )
-        self.delete_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.grid_layout.addWidget(self.delete_button, 4, 2)
+        self.stop_button = QPushButton("Stop")
+        self.stop_button.setSizePolicy(button_size, button_size)
+        self.stop_button.setStyleSheet(button_style)
+        self.stop_button.clicked.connect(self.stop_response_thread)
+        self.grid_layout.addWidget(self.stop_button, 1, 6, 1, 1)
 
-        # Wybór języka (0,2)
-        self.language_selector = QComboBox()
-        self.language_selector.setFont(QFont("Arial", 12))
-        self.language_selector.addItems([
-            "Polski", "Angielski", "Niemiecki", "Francuski", "Hiszpański",
-            "Ukraiński", "Rosyjski", "Włoski", "Szwedzki", "Norweski"
-        ])
-        self.language_selector.setCurrentIndex(0)  # Ustawienie domyślnej wartości na "Polski"
-        self.language_selector.setStyleSheet(
-            "QComboBox {"
-            "    background-color: white;"
-            "    border: 1px solid black;"
-            "    border-radius: 15px;"
-            "    padding: 5px;"
-            "}"
-            "QComboBox:hover {"
-            "    background-color: lightgray;"
-            "}"
-        )
-        self.language_selector.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.language_selector.currentTextChanged.connect(self.on_language_changed)
-        self.grid_layout.addWidget(self.language_selector, 0, 2)
+        self.longitude_input = QLineEdit()
+        self.longitude_input.setPlaceholderText("Długość geograficzna")
+        self.longitude_input.setSizePolicy(button_size, button_size)
+        self.longitude_input.setStyleSheet(
+            "background-color: #1E1E1E; color: white; border: 2px solid #6a5f31; border-radius: 10px; padding: 5px;")
+        self.grid_layout.addWidget(self.longitude_input, 2, 6, 1, 1)
 
-        # Przycisk "Wyczyść" (1,2)
-        self.clear_button = QPushButton("Wyczyść")
-        self.clear_button.setFont(QFont("Arial", 12))
-        self.clear_button.setStyleSheet(
-            "QPushButton {"
-            "    background-color: lightgray;"
-            "    border: 1px solid black;"
-            "    border-radius: 10px;"
-            "}"
-            "QPushButton:hover {"
-            "    background-color: gray;"
-            "    color: white;"
-            "}"
-        )
-        self.clear_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.clear_button.clicked.connect(self.clear_text)
-        self.grid_layout.addWidget(self.clear_button, 1, 2)
+        self.latitude_input = QLineEdit()
+        self.latitude_input.setPlaceholderText("Szerokość geograficzna")
+        self.latitude_input.setSizePolicy(button_size, button_size)
+        self.latitude_input.setStyleSheet(
+            "background-color: #1E1E1E; color: white; border: 2px solid #6a5f31; border-radius: 10px; padding: 5px;")
+        self.grid_layout.addWidget(self.latitude_input, 3, 6, 1, 1)
 
-        # Przycisk "Wyślij" (2,2)
-        self.send_button = QPushButton("WYŚLIJ")
-        self.send_button.setFont(QFont("Arial", 12, QFont.Bold))
-        self.send_button.setStyleSheet(
-            "QPushButton {"
-            "    border: 1px solid black;"
-            "    background-color: orange;"
-            "    border-radius: 10px;"
-            "}"
-            "QPushButton:hover {"
-            "    background-color: blue;"
-            "    color: white;"
-            "}"
-        )
-        self.send_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        self.send_button.clicked.connect(self.send_translated_command)
-        self.grid_layout.addWidget(self.send_button, 2, 2)
+        self.set_coordinates_button = QPushButton("Wyznacz koordynaty")
+        self.set_coordinates_button.setSizePolicy(button_size, button_size)
+        self.set_coordinates_button.setStyleSheet(button_style)
+        self.set_coordinates_button.clicked.connect(self.update_map)
+        self.grid_layout.addWidget(self.set_coordinates_button, 4, 6, 1, 1)
 
-        # Gotowe zwroty (0,3) do (4,4)
-        phrases = [
-            "PODĄŻAJ ZA MNĄ", "STÓJ", "LEĆ W GÓRĘ", "LEĆ W DÓŁ",
-            "OBRÓĆ W LEWO", "OBRÓĆ W PRAWO", "START", "LĄDUJ",
-            "AUTOMATYCZNY", "MANUALNY"
-        ]
+        self.speed_display = QLineEdit()
+        self.speed_display.setPlaceholderText("Prędkość")
+        self.speed_display.setReadOnly(True)
+        self.speed_display.setSizePolicy(button_size, button_size)
+        self.speed_display.setStyleSheet(
+            "background-color: #1E1E1E; color: white; border: 2px solid #6a5f31; border-radius: 10px; padding: 5px;")
+        self.grid_layout.addWidget(self.speed_display, 5, 6, 1, 1)
 
-        row, col = 0, 3
-        for phrase in phrases:
-            phrase_button = QPushButton(phrase)
-            phrase_button.setFont(QFont("Arial", 10))
-            phrase_button.setStyleSheet(
-                "QPushButton {"
-                "    border: 1px solid black;"
-                "    background-color: lightblue;"
-                "    border-radius: 10px;"
-                "}"
-                "QPushButton:hover {"
-                "    background-color: blue;"
-                "    color: white;"
-                "}"
-            )
-            phrase_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-            phrase_button.clicked.connect(lambda _, ph=phrase: self.send_translated_phrase(ph))
-            self.grid_layout.addWidget(phrase_button, row, col)
-            col += 1
-            if col > 4:
-                col = 3
-                row += 1
+        self.satellites_display = QLineEdit()
+        self.satellites_display.setPlaceholderText("Satelity")
+        self.satellites_display.setReadOnly(True)
+        self.satellites_display.setSizePolicy(button_size, button_size)
+        self.satellites_display.setStyleSheet(
+            "background-color: #1E1E1E; color: white; border: 2px solid #6a5f31; border-radius: 10px; padding: 5px;")
+        self.grid_layout.addWidget(self.satellites_display, 6, 6, 1, 1)
 
         self.setLayout(self.grid_layout)
+        debug_print("localization_tab", "Zakończono inicjalizację layoutu")
 
-    def clear_text(self):
-        """Czyści pola tekstowe i tłumaczenia."""
-        self.text_input.clear()
-        self.translation_display.clear()
+        self.response_thread = None
+        self.previous_coordinates = None
+        self.previous_time = None
 
-    def send_translated_command(self):
-        """Wysyła przetłumaczony tekst lub tekst użytkownika na serwer."""
-        translated_text = self.translation_display.toPlainText().strip()
-        user_text = self.text_input.toPlainText().strip()
+        self.create_map(52.2297, 21.0122)
 
-        if translated_text:
-            self.send_command("AU " + translated_text)
-        elif user_text:
-            self.send_command("AU " + user_text)
-        else:
-            QMessageBox.warning(self, "Błąd", "Pole tekstowe i tłumaczenie są puste. Wpisz tekst, aby go wysłać.")
-
-    def send_translated_phrase(self, phrase):
-        """Tłumaczy i wysyła wybraną frazę w odpowiednim języku."""
-        target_language_map = {
-            "Polski": "pl",
-            "Angielski": "en",
-            "Niemiecki": "de",
-            "Francuski": "fr",
-            "Hiszpański": "es",
-            "Ukraiński": "uk",
-            "Rosyjski": "ru",
-            "Włoski": "it",
-            "Szwedzki": "sv",
-            "Norweski": "no"
-        }
-
-        target_language = target_language_map.get(self.language_selector.currentText(), "pl")
-
+    def create_map(self, latitude, longitude):
         try:
-            translation = self.translator.translate(phrase, target_language)
-            self.send_command("TX " + translation.result)
-            print(f"[DEBUG] Wysłano przetłumaczoną frazę ({self.language_selector.currentText()}): {translation.result}")
+            debug_print("localization_tab", f"Tworzenie mapy dla współrzędnych: {latitude}, {longitude}")
+            self.folium_map = folium.Map(location=[latitude, longitude], zoom_start=15)
+            folium.Marker([latitude, longitude], tooltip="Lokalizacja").add_to(self.folium_map)
+            self.folium_map.save(self.map_file)
+            debug_print("localization_tab", f"Mapa zapisana w {self.map_file}")
+            self.map_view.setUrl(QUrl.fromLocalFile(self.map_file))
         except Exception as e:
-            QMessageBox.critical(self, "Błąd", f"Nie udało się przetłumaczyć frazy: {e}")
+            debug_print("localization_tab", f"Błąd tworzenia mapy: {e}")
+            QMessageBox.critical(self, "Błąd", f"Nie udało się wygenerować mapy: {e}")
 
-    def on_language_changed(self):
-        """Obsługuje automatyczne tłumaczenie tekstu przy zmianie języka."""
-        self.translate_text()
+    def update_map(self):
+        debug_print("localization_tab", f"Rozpoczęcie aktualizacji mapy z pozycjami: {self.gps_positions}")
+        try:
+            if self.gps_positions:
+                folium_map = folium.Map(location=self.gps_positions[-1], zoom_start=15)
+                folium.PolyLine(self.gps_positions, color="blue", weight=2.5).add_to(folium_map)
+                folium.Marker(self.gps_positions[-1]).add_to(folium_map)
+                debug_print("localization_tab", f"Zaktualizowano mapę dla ostatniej pozycji: {self.gps_positions[-1]}")
+            else:
+                folium_map = folium.Map(location=[52.2297, 21.0122], zoom_start=15)
+                debug_print("localization_tab", "Brak pozycji GPS, użyto domyślnych współrzędnych")
+            folium_map.save(self.map_file)
+            debug_print("localization_tab", f"Mapa zapisana w pliku: {self.map_file}")
+            self.map_view.setUrl(QUrl.fromLocalFile(self.map_file))
+        except Exception as e:
+            debug_print("localization_tab", f"Błąd podczas aktualizacji mapy: {e}")
+            QMessageBox.critical(self, "Błąd mapy", f"Nie udało się zaktualizować mapy: {e}")
 
-    def translate_text(self):
-        """Tłumaczy tekst w polu tekstowym na wybrany język."""
-        source_text = self.text_input.toPlainText().strip()
-        if not source_text:
-            self.translation_display.clear()
+    def is_connected(self):
+        """Sprawdza, czy aplikacja jest połączona z serwerem."""
+        debug_print("localization_tab", "Rozpoczęto sprawdzanie połączenia...")
+
+        # Sprawdź, czy parent_window istnieje
+        if not self.parent_window:
+            debug_print("localization_tab", "Brak parent_window")
+            return False
+
+        # Sprawdź, czy parent_window zawiera connect_tab
+        if not hasattr(self.parent_window, 'connect_tab'):
+            debug_print("localization_tab", "Brak connect_tab w parent_window")
+            return False
+
+        connect_tab = self.parent_window.connect_tab
+
+        # Sprawdź, czy connect_tab ma wymagane atrybuty
+        if not hasattr(connect_tab, 'connected') or not hasattr(connect_tab, 'connection_type'):
+            debug_print("localization_tab", "Brak atrybutów connected lub connection_type w connect_tab")
+            return False
+
+        # Sprawdź, czy połączenie jest aktywne
+        if not connect_tab.connected:
+            debug_print("localization_tab", "Nie jesteś połączony z serwerem")
+            return False
+
+        debug_print("localization_tab", "Połączenie z serwerem jest aktywne")
+        return True
+
+    def handle_start_button(self):
+        """Wysyła polecenie LOC do serwera i nasłuchuje odpowiedzi."""
+        if not self.is_connected():
+            debug_print("localization_tab", "Połączenie nieaktywne, przerwano wysyłanie.")
+            QMessageBox.warning(self, "Brak połączenia", "Musisz najpierw połączyć się z serwerem, aby wysłać komendę.")
             return
 
-        target_language_map = {
-            "Polski": "pl",
-            "Angielski": "en",
-            "Niemiecki": "de",
-            "Francuski": "fr",
-            "Hiszpański": "es",
-            "Ukraiński": "uk",
-            "Rosyjski": "ru",
-            "Włoski": "it",
-            "Szwedzki": "sv",
-            "Norweski": "no"
-        }
-
-        target_language = target_language_map.get(self.language_selector.currentText(), "pl")
+        command = "LOC"
+        debug_print("localization_tab", f"Przygotowano komendę: {command}")
 
         try:
-            translation = self.translator.translate(source_text, target_language)
-            self.translation_display.setPlainText(translation.result)
-            print(f"[DEBUG] Tłumaczenie na {self.language_selector.currentText()}: {translation.result}")
-        except Exception as e:
-            QMessageBox.critical(self, "Błąd", f"Nie udało się przetłumaczyć tekstu: {e}")
+            connect_tab = self.parent_window.connect_tab
+            connection_type = connect_tab.connection_type.currentText()
+            debug_print("localization_tab", f"Typ połączenia: {connection_type}")
 
-    def send_command(self, command):
-        parent = self.parent_window
-        if hasattr(parent, 'client_socket') and parent.client_socket:
-            try:
-                parent.client_socket.sendall(command.encode('utf-8'))
-                print(f"Wysłano: {command}")
-            except Exception as e:
-                QMessageBox.critical(self, "Błąd", f"Nie udało się wysłać: {e}")
-        else:
-            QMessageBox.warning(self, "Brak połączenia", "Nie jesteś połączony z serwerem.")
+            if connection_type == "Socket/WiFi/Ethernet":
+                if hasattr(connect_tab, 'sock') and connect_tab.sock:
+                    debug_print("localization_tab", "Socket jest aktywny. Próba wysłania komendy...")
+                    connect_tab.sock.sendall(command.encode('utf-8'))
+                    debug_print("localization_tab", f"Wysłano przez socket: {command}")
+                    self.start_response_thread(connect_tab.sock)
+                else:
+                    debug_print("localization_tab", "Socket nie istnieje lub jest zamknięty.")
+                    QMessageBox.warning(self, "Błąd połączenia", "Socket nie jest aktywny.")
+            elif connection_type == "LoRa":
+                if hasattr(connect_tab, 'serial_conn') and connect_tab.serial_conn:
+                    debug_print("localization_tab", "Połączenie LoRa aktywne. Próba wysłania komendy...")
+                    connect_tab.serial_conn.write(command.encode('utf-8'))
+                    debug_print("localization_tab", f"Wysłano przez LoRa: {command}")
+                    self.start_response_thread(connect_tab.serial_conn)
+                else:
+                    debug_print("localization_tab", "LoRa nie istnieje lub jest zamknięta.")
+                    QMessageBox.warning(self, "Błąd połączenia", "LoRa nie jest aktywna.")
+            else:
+                debug_print("localization_tab", f"Nieobsługiwany typ połączenia: {connection_type}")
+                QMessageBox.warning(self, "Błąd połączenia", f"Nieobsługiwany typ połączenia: {connection_type}")
+        except Exception as e:
+            debug_print("localization_tab", f"Błąd podczas wysyłania: {e}")
+            QMessageBox.critical(self, "Błąd wysyłania", f"Nie udało się wysłać: {e}")
+
+    def start_response_thread(self, connection):
+        if self.response_thread and self.response_thread.isRunning():
+            self.response_thread.stop()
+            self.response_thread.wait()
+
+        self.response_thread = ResponseThread(connection)
+        self.response_thread.response_received.connect(self.update_logs)
+        self.response_thread.start()
+
+    def stop_response_thread(self):
+        if self.response_thread and self.response_thread.isRunning():
+            self.response_thread.stop()
+            self.response_thread.wait()
+            self.response_thread = None
+        """Wysyła polecenie LOC do serwera i nasłuchuje odpowiedzi."""
+        if not self.is_connected():
+            debug_print("localization_tab", "Połączenie nieaktywne, przerwano wysyłanie.")
+            QMessageBox.warning(self, "Brak połączenia", "Musisz najpierw połączyć się z serwerem, aby wysłać komendę.")
+            return
+
+        command = "STOP"
+        debug_print("localization_tab", f"Przygotowano komendę: {command}")
+
+        try:
+            connect_tab = self.parent_window.connect_tab
+            connection_type = connect_tab.connection_type.currentText()
+            debug_print("localization_tab", f"Typ połączenia: {connection_type}")
+
+            if connection_type == "Socket/WiFi/Ethernet":
+                if hasattr(connect_tab, 'sock') and connect_tab.sock:
+                    debug_print("localization_tab", "Socket jest aktywny. Próba wysłania komendy...")
+                    connect_tab.sock.sendall(command.encode('utf-8'))
+                    debug_print("localization_tab", f"Wysłano przez socket: {command}")
+                    self.start_response_thread(connect_tab.sock)
+                else:
+                    debug_print("localization_tab", "Socket nie istnieje lub jest zamknięty.")
+                    QMessageBox.warning(self, "Błąd połączenia", "Socket nie jest aktywny.")
+            elif connection_type == "LoRa":
+                if hasattr(connect_tab, 'serial_conn') and connect_tab.serial_conn:
+                    debug_print("localization_tab", "Połączenie LoRa aktywne. Próba wysłania komendy...")
+                    connect_tab.serial_conn.write(command.encode('utf-8'))
+                    debug_print("localization_tab", f"Wysłano przez LoRa: {command}")
+                    self.start_response_thread(connect_tab.serial_conn)
+                else:
+                    debug_print("localization_tab", "LoRa nie istnieje lub jest zamknięta.")
+                    QMessageBox.warning(self, "Błąd połączenia", "LoRa nie jest aktywna.")
+            else:
+                debug_print("localization_tab", f"Nieobsługiwany typ połączenia: {connection_type}")
+                QMessageBox.warning(self, "Błąd połączenia", f"Nieobsługiwany typ połączenia: {connection_type}")
+        except Exception as e:
+            debug_print("localization_tab", f"Błąd podczas wysyłania: {e}")
+            QMessageBox.critical(self, "Błąd wysyłania", f"Nie udało się wysłać: {e}")
+
+    def update_logs_from_source(self):
+        # Example log line (replace with actual data source logic):
+        log_line = "Czas: 07:01:28.492 | Pozycja: Szerokość: 51.159929, Długość: 17.137955666666667 | Liczba widocznych satelitów: 02"
+        debug_print("localization_tab", f"Aktualizacja logów z przykładowego źródła: {log_line}")
+        self.update_logs(log_line)
+
+    def update_logs(self, message):
+        debug_print("localization_tab", f"Rozpoczęcie aktualizacji logów: {message}")
+        try:
+            self.logs_widget.append(message)
+            parsed_data = self.parse_log(message)
+            if parsed_data:
+                latitude, longitude, satellites, timestamp = parsed_data
+                debug_print("localization_tab",
+                            f"Parsowanie zakończone: Lat: {latitude}, Lon: {longitude}, Sat: {satellites}, Time: {timestamp}")
+                self.gps_positions.append((latitude, longitude))
+                self.update_map()
+                self.update_satellite_widget(satellites)
+                self.calculate_speed(latitude, longitude, timestamp)
+            else:
+                debug_print("localization_tab", "Nie udało się sparsować danych z logu")
+        except Exception as e:
+            debug_print("localization_tab", f"Błąd podczas aktualizacji logów: {e}")
+            QMessageBox.critical(self, "Błąd logów", f"Nie udało się zaktualizować logów: {e}")
+
+    def parse_log(self, log_line):
+        debug_print("localization_tab", f"Parsowanie logu: {log_line}")
+        try:
+            match = re.search(r"Szerokość: ([\d.]+), Długość: ([\d.]+) \| Liczba widocznych satelitów: (\d+)", log_line)
+            if match:
+                latitude = float(match.group(1))
+                longitude = float(match.group(2))
+                satellites = int(match.group(3))
+                time_match = re.search(r"Czas: ([\d:.]+)", log_line)
+                timestamp = time_match.group(1) if time_match else None
+                debug_print("localization_tab",
+                            f"Parsowanie zakończone - Latitude: {latitude}, Longitude: {longitude}, Satellites: {satellites}, Timestamp: {timestamp}")
+                return latitude, longitude, satellites, timestamp
+            debug_print("localization_tab", "Nie udało się sparsować logu")
+            return None
+        except Exception as e:
+            debug_print("localization_tab", f"Błąd podczas parsowania logu: {e}")
+            return None
+
+    def update_satellite_widget(self, satellites):
+        debug_print("localization_tab", f"Aktualizacja liczby satelitów: {satellites}")
+        self.satellites_display.setText(str(satellites))
+
+    def calculate_speed(self, latitude, longitude, timestamp):
+        debug_print("localization_tab",
+                    f"Rozpoczęcie obliczania prędkości dla punktu: {latitude}, {longitude}, czas: {timestamp}")
+        try:
+            if self.previous_coordinates and self.previous_time:
+                current_coordinates = (latitude, longitude)
+                distance = geodesic(self.previous_coordinates, current_coordinates).meters
+                debug_print("localization_tab", f"Odległość między punktami: {distance} m")
+                time_delta = (datetime.strptime(timestamp, "%H:%M:%S.%f") - self.previous_time).total_seconds()
+                debug_print("localization_tab", f"Różnica czasu: {time_delta} s")
+                if time_delta > 0:
+                    speed = distance / time_delta  # m/s
+                    debug_print("localization_tab", f"Prędkość obliczona: {speed:.2f} m/s")
+                    self.speed_display.setText(f"{speed:.2f} m/s")
+                else:
+                    debug_print("localization_tab", "Różnica czasu <= 0, prędkość nie została obliczona")
+            self.previous_coordinates = (latitude, longitude)
+            self.previous_time = datetime.strptime(timestamp, "%H:%M:%S.%f")
+        except Exception as e:
+            debug_print("localization_tab", f"Błąd podczas obliczania prędkości: {e}")
+            QMessageBox.critical(self, "Błąd", f"Nie udało się obliczyć prędkości: {e}")
