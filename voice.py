@@ -3,9 +3,9 @@ import soundfile as sf
 import numpy as np
 
 # Parametry nagrywania
-czas_nagrania = 2  # czas nagrania w sekundach
+czas_nagrania = 5  # czas nagrania w sekundach
 czestotliwosc_probkowania = 44100  # częstotliwość próbkowania w Hz
-nazwa_pliku = 'nagranie_wzmocnione.wav'  # nazwa pliku wyjściowego
+nazwa_pliku = 'nagranie_wzmocnione.mp3'  # nazwa pliku wyjściowego
 wspolczynnik_wzmocnienia = 10.0  # wartość wzmacniająca (np. 2.0 = 200% głośności)
 
 print("Rozpoczynam nagrywanie...")
