@@ -9,12 +9,7 @@ BAUD_RATE = 9600
 CHUNK_SIZE = 1024  # Rozmiar pojedynczej porcji danych w bajtach
 
 def zapisz_plik(output_file, dane):
-    """
-    Zapisuje dane do pliku binarnego.
 
-    :param output_file: Ścieżka do pliku wyjściowego.
-    :param dane: Dane do zapisania w pliku.
-    """
     with open(output_file, "wb") as f:
         f.write(dane)
     print(f"Plik zapisany jako {output_file}")

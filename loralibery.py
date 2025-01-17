@@ -1,9 +1,10 @@
-import socket
+import serial
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from os import urandom
 import json
 from functions.współnyklucz import generate_random_full_key
 from charon_library.Debuger import debug_print
+
 def load_key_from_json(index: int, json_file: str) -> bytes:
     """
     Ładuje połowę klucza z pliku JSON na podstawie indeksu.
@@ -44,7 +45,7 @@ def encrypt_data(data: bytes) -> tuple:
         tuple: Zaszyfrowane dane w bajtach, indeksy połówek klucza, IV w bajtach, tag w bajtach.
     """
     # Generowanie klucza z losowych połówek
-    full_key, index1, index2 = generate_random_full_key("half_keys_indexed.json")
+    full_key, index1, index2 = generate_random_full_key("C:/Users/ninja/OneDrive/Pulpit/Praca/GUI-Charon/szyfrandodszyfr/half_keys_indexed.json")
 
     # Upewnij się, że klucz ma poprawną długość (256 bitów = 32 bajty)
     if len(full_key) != 32:
@@ -52,8 +53,7 @@ def encrypt_data(data: bytes) -> tuple:
 
     # Generowanie losowego wektora IV
     iv = urandom(12)  # 96-bitowy wektor inicjalizujący (IV) dla AES-GCM
-    debug_print("szyfr",f"(VI przed {iv.hex()}")
-
+    debug_print("szyfr", f" [encrypt_data] (VI przed {iv.hex()}")
 
     # Tworzenie instancji AES-GCM
     aesgcm = AESGCM(full_key)
@@ -67,27 +67,27 @@ def encrypt_data(data: bytes) -> tuple:
 
     return encrypted_data, index1, index2, iv, tag
 
-def client_program(host: str, port: int, data: bytes):
+def client_program(port: str, baudrate: int, data: bytes):
     """
-    Klient wysyła dane wejściowe, indeksy połówek klucza, zaszyfrowane dane, IV i tag do serwera.
+    Klient wysyła dane wejściowe, indeksy połówek klucza, zaszyfrowane dane, IV i tag do odbiorcy LoRa.
 
     Args:
-        host (str): Adres IP serwera.
-        port (int): Port serwera.
+        port (str): Port szeregowy, do którego podłączony jest moduł LoRa.
+        baudrate (int): Prędkość transmisji w bodach.
         data (bytes): Dane do zaszyfrowania i wysłania.
     """
     try:
         # Szyfrowanie danych
         encrypted_data, index1, index2, iv, tag = encrypt_data(data)
-        debug_print("szyfr",f"Indeks 1: {index1}")
-        debug_print("szyfr",f"Indeks 2: {index2}")
-        debug_print("szyfr",f"IV przed XOR: {iv.hex()}")
+        debug_print("szyfr", f" [client_program] Indeks 1: {index1}")
+        debug_print("szyfr", f" [client_program] Indeks 2: {index2}")
+        debug_print("szyfr", f" [client_program] IV przed XOR: {iv.hex()}")
 
         # XOR na IV z index2
-        iv = xor_iv_with_index(iv, load_key_from_json(index2,"half_keys_indexed.json"))
-        debug_print("szyfr",f"IV po XOR: {iv.hex()}")
+        iv = xor_iv_with_index(iv, load_key_from_json(index2, "C:/Users/ninja/OneDrive/Pulpit/Praca/GUI-Charon/szyfrandodszyfr/half_keys_indexed.json"))
+        debug_print("szyfr", f" [client_program] IV po XOR: {iv.hex()}")
 
-        debug_print("szyfr",f"Tag: {tag.hex()}")
+        debug_print("szyfr", f" [client_program] Tag: {tag.hex()}")
 
         # Przygotowanie wiadomości
         message = (index1.to_bytes(1, 'little') +
@@ -95,33 +95,27 @@ def client_program(host: str, port: int, data: bytes):
                    iv +
                    encrypted_data +
                    tag)
-        print("Długość wiadomości w bajtach:", len(message))
+        debug_print("szyfr", f" [client_program] Długość wiadomości w bajtach: {len(message)}")
 
-        # Połączenie z serwerem
-        client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        client_socket.connect((host, port))
-        debug_print("szyfr",f"Połączono z serwerem {host}:{port}")
+        # Połączenie z modułem LoRa przez port szeregowy
+        with serial.Serial(port, baudrate, timeout=1) as ser:
+            # debug_print("szyfr", f" [client_program] Połączono z modułem LoRa na porcie {port} z prędkością {baudrate}.")
 
-        # Wysyłanie wiadomości
-        client_socket.sendall(message)
-        print("Dane zostały wysłane w bajtach.")
+            # Wysyłanie wiadomości
+            ser.write(message)
 
-        # Odbieranie odpowiedzi
-        response = client_socket.recv(4096)
-        print("Odebrane dane (raw):", response)
-        try:
-            response_text = response.decode('utf-8')
-            debug_print("szyfr",f"Odebrane dane (tekst):", response_text)
-        except UnicodeDecodeError:
-            debug_print("szyfr",f"Odebrane dane nie są tekstem (bajty):", response)
-        debug_print("szyfr",f"Odpowiedź serwera (w bajtach):", response)
+            # Odbieranie odpowiedzi
+            response = ser.read(4096)
+            try:
+                response_text = response.decode('utf-8')
+                debug_print("szyfr", f"Odebrane dane {response_text}")
+            except UnicodeDecodeError:
+                debug_print("szyfr", f"Odebrane dane nie są tekstem {response}")
 
-        client_socket.close()
     except Exception as e:
-        debug_print("szyfr",f"Błąd klienta : {e}")
-
+        debug_print("szyfr", f"Błąd klienta: {e}")
 
 if __name__ == "__main__":
     while True:
         data = input("Podaj dane do zaszyfrowania: ").encode('utf-8')
-        client_program("192.168.1.3", 2137, data)
+        client_program("COM6", 9600, data)
