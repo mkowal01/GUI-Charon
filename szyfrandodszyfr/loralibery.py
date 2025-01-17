@@ -45,7 +45,7 @@ def encrypt_data(data: bytes) -> tuple:
         tuple: Zaszyfrowane dane w bajtach, indeksy połówek klucza, IV w bajtach, tag w bajtach.
     """
     # Generowanie klucza z losowych połówek
-    full_key, index1, index2 = generate_random_full_key("C:/Users/ninja/OneDrive/Pulpit/Praca/GUI-Charon/szyfrandodszyfr/half_keys_indexed.json")
+    full_key, index1, index2 = generate_random_full_key("../charon_library/half_keys_indexed.json")
 
     # Upewnij się, że klucz ma poprawną długość (256 bitów = 32 bajty)
     if len(full_key) != 32:
@@ -84,7 +84,7 @@ def client_program(port: str, baudrate: int, data: bytes):
         debug_print("szyfr", f" [client_program] IV przed XOR: {iv.hex()}")
 
         # XOR na IV z index2
-        iv = xor_iv_with_index(iv, load_key_from_json(index2, "C:/Users/ninja/OneDrive/Pulpit/Praca/GUI-Charon/szyfrandodszyfr/half_keys_indexed.json"))
+        iv = xor_iv_with_index(iv, load_key_from_json(index2, "../charon_library/half_keys_indexed.json"))
         debug_print("szyfr", f" [client_program] IV po XOR: {iv.hex()}")
 
         debug_print("szyfr", f" [client_program] Tag: {tag.hex()}")

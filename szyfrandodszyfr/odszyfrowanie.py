@@ -58,7 +58,7 @@ def decrypt_data(message: bytes, json_file: str) -> str:
     debug_print("odszyfr",f"IV przed XOR: {iv.hex()}")
 
     # XOR na IV z index2
-    iv = xor_iv_with_index(iv, load_key_from_json(index2,"half_keys_indexed.json"))
+    iv = xor_iv_with_index(iv, load_key_from_json(index2, "../charon_library/half_keys_indexed.json"))
     debug_print("odszyfr",f"IV po XOR: {iv.hex()}")
 
     debug_print("odszyfr",f"Tag: {tag.hex()}")
@@ -118,5 +118,5 @@ def server_program(host: str, port: int, json_file: str):
         server_socket.close()
 
 if __name__ == "__main__":
-    json_file_path = "half_keys_indexed.json"
+    json_file_path = "../charon_library/half_keys_indexed.json"
     server_program("192.168.1.3", 2137, json_file_path)

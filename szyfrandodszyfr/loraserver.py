@@ -58,7 +58,7 @@ def decrypt_data(message: bytes, json_file: str) -> str:
     debug_print("odszyfr",f" [decrypt_data] IV przed XOR: {iv.hex()}")
 
     # XOR na IV z index2
-    iv = xor_iv_with_index(iv, load_key_from_json(index2,"C:/Users/ninja/OneDrive/Pulpit/Praca/GUI-Charon/szyfrandodszyfr/half_keys_indexed.json"))
+    iv = xor_iv_with_index(iv, load_key_from_json(index2, "../charon_library/half_keys_indexed.json"))
     debug_print("odszyfr",f" [decrypt_data] IV po XOR: {iv.hex()}")
     debug_print("odszyfr",f" [decrypt_data] Tag: {tag.hex()}")
 
@@ -113,5 +113,5 @@ def server_program(port: str, baudrate: int, json_file: str):
         debug_print("odszyfr", f"Błąd serwera: {e}")
 
 if __name__ == "__main__":
-    json_file_path = "C:/Users/ninja/OneDrive/Pulpit/Praca/GUI-Charon/szyfrandodszyfr/half_keys_indexed.json"
+    json_file_path = "../charon_library/half_keys_indexed.json"
     server_program("COM9", 9600, json_file_path)
