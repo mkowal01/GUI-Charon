@@ -1,7 +1,10 @@
+import time
+from datetime import datetime
+
 import serial
 
 # Ustawienia portu szeregowego
-SERIAL_PORT = 'COM8'  # Port USB UART odbiornika
+SERIAL_PORT = 'COM6'  # Port USB UART odbiornika
 BAUD_RATE = 9600
 CHUNK_SIZE = 1024  # Rozmiar pojedynczej porcji danych w bajtach
 
@@ -25,7 +28,7 @@ def odbierz_plik(serial_port, output_file):
     """
     try:
         buffer = b""
-
+        start_time_total = time.time()
         # Odbierz nagłówek
         header = serial_port.read_until(b"|").decode('utf-8', errors='ignore').strip('|')
         rozmiar = int(header)
@@ -36,9 +39,11 @@ def odbierz_plik(serial_port, output_file):
 
         # Odbieranie danych w porcjach
         while len(buffer) < rozmiar:
+            start_time = time.time()
             chunk = serial_port.read(min(CHUNK_SIZE, rozmiar - len(buffer)))
             buffer += chunk
-            print(f"Odebrano porcję danych ({len(chunk)} B, łącznie: {len(buffer)}/{rozmiar} B)")
+            end_time = time.time()
+            print(f"Odebrano porcję danych ({len(chunk)} B, łącznie: {len(buffer)}/{rozmiar} B, czas: {end_time - start_time:.2f} s)")
 
             # Wysłanie potwierdzenia odbioru porcji
             serial_port.write(b"ACK_CHUNK\n")
@@ -56,11 +61,13 @@ def odbierz_plik(serial_port, output_file):
 
         # Wysłanie potwierdzenia odbioru pliku
         serial_port.write(b"ACK_FILE\n")
-
+        end_time_total = time.time()
+        print(f"Całkowity czas odbioru pliku: {end_time_total - start_time_total:.2f} s")
     except Exception as e:
         print(f"Błąd podczas odbioru pliku: {e}")
 
 def main():
+    start_datetime = datetime.now()
     output_file = "szyfrandodszyfr/received_file.bin"
 
     try:
@@ -77,6 +84,7 @@ def main():
     finally:
         ser.close()
         print("Połączenie zamknięte.")
-
+    end_datetime = datetime.now()
+    print(f'Start {start_datetime} \n End {end_datetime}')
 if __name__ == "__main__":
     main()

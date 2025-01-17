@@ -1,7 +1,7 @@
 import serial
 
 # Ustawienia portu szeregowego
-SERIAL_PORT = 'COM8'  # Port USB UART odbiornika
+SERIAL_PORT = 'COM6'  # Port USB UART odbiornika
 BAUD_RATE = 9600
 
 def main():
