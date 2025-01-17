@@ -1,5 +1,8 @@
 import serial
 import struct
+import time
+from datetime import datetime
+
 
 # Ustawienia portu szeregowego
 SERIAL_PORT = 'COM6'  # Port USB UART nadajnika
@@ -19,6 +22,8 @@ def wyslij_plik(serial_port, sciezka_pliku):
             zawartosc = plik.read()
             rozmiar = len(zawartosc)
 
+            start_time_total = time.time()
+
             # Wyślij nagłówek z rozmiarem pliku
             naglowek = f"{rozmiar}|".encode('utf-8')
             serial_port.write(naglowek)
@@ -34,16 +39,18 @@ def wyslij_plik(serial_port, sciezka_pliku):
 
             # Wysyłanie danych w porcjach
             for i in range(0, rozmiar, CHUNK_SIZE):
+                start_time = time.time()
                 chunk = zawartosc[i:i + CHUNK_SIZE]
                 serial_port.write(chunk)
                 print(f"Wysłano porcję danych ({len(chunk)} B)")
 
                 # Oczekiwanie na potwierdzenie
                 response = serial_port.read_until(b"\n").decode('utf-8', errors='ignore').strip()
+                end_time = time.time()
                 if response != "ACK_CHUNK":
                     print("Nieoczekiwane potwierdzenie porcji danych.")
                     return
-
+                print(f"Potwierdzenie porcji otrzymane (czas: {end_time - start_time:.2f} s)")
             # Wyślij stopkę
             stopka = b"|XXX\n"
             serial_port.write(stopka)
@@ -51,14 +58,18 @@ def wyslij_plik(serial_port, sciezka_pliku):
 
             # Oczekiwanie na potwierdzenie pliku
             response = serial_port.read_until(b"\n").decode('utf-8', errors='ignore').strip()
+            end_time_total = time.time()
             if response == "ACK_FILE":
-                print("Odebrano potwierdzenie odbioru pliku.")
+                print(
+                    f"Odebrano potwierdzenie odbioru pliku. Całkowity czas wysyłania: {end_time_total - start_time_total:.2f} s")
             else:
                 print(f"Otrzymano nieoczekiwaną odpowiedź: {response}")
     except Exception as e:
         print(f"Błąd podczas wysyłania pliku: {e}")
 
 def main():
+    start_datetime = datetime.now()
+
     sciezka_pliku = "C:/Users/ninja/OneDrive/Pulpit/Praca/GUI-Charon/nagranie_wzmocnione.mp3"
 
     try:
@@ -75,6 +86,7 @@ def main():
     finally:
         ser.close()
         print("Połączenie zamknięte.")
-
+    end_datetime = datetime.now()
+    print(f'Start {start_datetime} \n End {end_datetime}')
 if __name__ == "__main__":
     main()
