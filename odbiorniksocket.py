@@ -1,50 +1,55 @@
 import time
 from datetime import datetime
+import socket
 
-import serial
-
-# Ustawienia portu szeregowego
-SERIAL_PORT = 'COM6'  # Port USB UART odbiornika
-BAUD_RATE = 9600
-CHUNK_SIZE = 1024  # Rozmiar pojedynczej porcji danych w bajtach
+# Ustawienia gniazda (socket)
+SERVER_IP = '127.0.0.1'  # Adres IP serwera
+SERVER_PORT = 12345       # Port serwera
+BUFFER_SIZE = 2048        # Rozmiar bufora danych
 
 def zapisz_plik(output_file, dane):
+    """
+    Zapisuje odebrane dane do pliku.
 
+    :param output_file: Ścieżka do pliku wyjściowego.
+    :param dane: Odebrane dane w bajtach.
+    """
     with open(output_file, "wb") as f:
         f.write(dane)
     print(f"Plik zapisany jako {output_file}")
 
-def odbierz_plik(serial_port, output_file):
+def odbierz_plik(client_socket, output_file):
     """
-    Odbiera plik przez port szeregowy w porcjach, wysyłając potwierdzenie po każdej porcji.
+    Odbiera plik przez socket w porcjach, wysyłając potwierdzenie po każdej porcji.
 
-    :param serial_port: Obiekt portu szeregowego.
+    :param client_socket: Obiekt socketu klienta.
     :param output_file: Ścieżka do pliku wyjściowego.
     """
     try:
         buffer = b""
         start_time_total = time.time()
+
         # Odbierz nagłówek
-        header = serial_port.read_until(b"|").decode('utf-8', errors='ignore').strip('|')
+        header = client_socket.recv(BUFFER_SIZE).decode('utf-8').strip('|')
         rozmiar = int(header)
         print(f"Oczekiwana długość pliku: {rozmiar} B")
 
         # Wysłanie potwierdzenia odbioru nagłówka
-        serial_port.write(b"ACK_HEADER\n")
+        client_socket.sendall(b"ACK_HEADER\n")
 
         # Odbieranie danych w porcjach
         while len(buffer) < rozmiar:
             start_time = time.time()
-            chunk = serial_port.read(min(CHUNK_SIZE, rozmiar - len(buffer)))
+            chunk = client_socket.recv(min(BUFFER_SIZE, rozmiar - len(buffer)))
             buffer += chunk
             end_time = time.time()
             print(f"Odebrano porcję danych ({len(chunk)} B, łącznie: {len(buffer)}/{rozmiar} B, czas: {end_time - start_time:.2f} s)")
 
             # Wysłanie potwierdzenia odbioru porcji
-            serial_port.write(b"ACK_CHUNK\n")
+            client_socket.sendall(b"ACK_CHUNK\n")
 
         # Odbierz stopkę
-        stopka = serial_port.read_until(b"\n").decode('utf-8', errors='ignore').strip()
+        stopka = client_socket.recv(BUFFER_SIZE).decode('utf-8').strip()
         if stopka == "|XXX":
             print("Odebrano poprawną stopkę.")
         else:
@@ -55,7 +60,7 @@ def odbierz_plik(serial_port, output_file):
         zapisz_plik(output_file, buffer)
 
         # Wysłanie potwierdzenia odbioru pliku
-        serial_port.write(b"ACK_FILE\n")
+        client_socket.sendall(b"ACK_FILE\n")
         end_time_total = time.time()
         print(f"Całkowity czas odbioru pliku: {end_time_total - start_time_total:.2f} s")
     except Exception as e:
@@ -66,20 +71,27 @@ def main():
     output_file = "charon_library/received_file.bin"
 
     try:
-        ser = serial.Serial(SERIAL_PORT, BAUD_RATE)
-        print(f"Odbiornik podłączony do {SERIAL_PORT}")
+        # Tworzenie socketu serwera
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as server_socket:
+            server_socket.bind((SERVER_IP, SERVER_PORT))
+            server_socket.listen(1)
+            print(f"Serwer nasłuchuje na {SERVER_IP}:{SERVER_PORT}")
 
-        # Odbieranie pliku
-        odbierz_plik(ser, output_file)
+            # Akceptowanie połączenia
+            client_socket, client_address = server_socket.accept()
+            with client_socket:
+                print(f"Połączono z {client_address}")
 
-    except serial.SerialException as e:
-        print(f"Błąd portu szeregowego: {e}")
+                # Odbieranie pliku
+                odbierz_plik(client_socket, output_file)
+
+    except socket.error as e:
+        print(f"Błąd socketu: {e}")
     except KeyboardInterrupt:
         print("\nPrzerwanie programu.")
-    finally:
-        ser.close()
-        print("Połączenie zamknięte.")
+
     end_datetime = datetime.now()
     print(f'Start {start_datetime} \n End {end_datetime}')
+
 if __name__ == "__main__":
     main()
