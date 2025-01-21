@@ -1,10 +1,8 @@
 import serial
-import binascii  # Do konwersji z HEX
 
 # Ustawienia portu szeregowego
-SERIAL_PORT = 'COM3'  # Port USB UART odbiornika
+SERIAL_PORT = 'COM6'  # Port USB UART odbiornika
 BAUD_RATE = 9600
-
 
 def main():
     try:
@@ -12,28 +10,21 @@ def main():
         print(f"Odbiornik podłączony do {SERIAL_PORT}")
         print("Czekam na wiadomości...")
 
-        buffer = ""
+        buffer = b""
         while True:
             if ser.in_waiting > 0:  # Sprawdź, czy są dane do odebrania
-                char = ser.read(1).decode('ascii', errors='ignore')
+                char = ser.read(1)  # Odbierz bajt
 
-                if char == "\n":  # Koniec wiadomości
-                    hex_message = buffer.strip()
-                    try:
-                        # Dekodowanie wiadomości z HEX na tekst
-                        received_message = bytes.fromhex(hex_message).decode('utf-8')
-                        print(f"Odebrano: {received_message} (HEX: {hex_message})")
-                        # Wpisanie odpowiedzi
-                        response_message = f"Długość wiadomości {len(received_message)}"
-                        response_hex = binascii.hexlify(response_message.encode('utf-8')).decode('ascii')
-                        ser.write((response_hex + "\n").encode('ascii'))
-                        print(f"Wysłano (HEX): {response_hex}")
-                    except ValueError:
-                        print(f"Błąd dekodowania HEX: {hex_message}")
-                        buffer = ""
+                if char == b"\n":  # Koniec wiadomości
+                    received_message = buffer.strip().decode('utf-8', errors='ignore')
+                    print(f"Odebrano: {received_message} (BYTE: {buffer})")
 
+                    # Wpisanie odpowiedzi
+                    response_message = f"Długość wiadomości {len(received_message)}"
+                    ser.write(response_message.encode('utf-8') + b"\n")
+                    print(f"Wysłano: {response_message} (BYTE)")
 
-                    buffer = ""  # Wyczyść bufor
+                    buffer = b""  # Wyczyść bufor
                 else:
                     buffer += char
 
