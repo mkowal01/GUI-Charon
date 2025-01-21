@@ -1,31 +1,22 @@
-import math
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
-# Dane
-f_mhz = 868  # Częstotliwość w MHz
-d_km = 1  # Odległość w kilometrach
-h_t = 1  # Wysokość anteny nadawczej (m)
-h_r = 1 # Wysokość anteny odbiorczej (m)
+# Dane do odszyfrowania
+iv = b'v\x0fK\x81\x1c\xcb\xd9t\x18w\xf2\x91'
+full_key = b"Q?\xf8\xc2\x0b\xae>\xa1\x94\xbb\xbd\xe92\xb1\x08s\xb3\xa8v\x8a\xa8\x9a'_\xe0\xbba\t\x0c\x7fN\x88"
+ciphertext = b'\x1c\xa4\x82o\xf5g\xc4\x9e\xe3\xa2\xb2\xb9\xd3\x95\x98\x80\xf8F\x8aN\xa2\xb3\x96Q\x95\xfb\xb5\xb5\x1f\xb4\x8b\xaa\xb0,^(\xe1;6\x8b\xde\xf9\x90;\x8b'
+tag = b'\x10.\xb4\xc97\xb4^g\x1f\x7f\xdd\x96\x8c\xb2\xcf\xf3'
 
-# Funkcja dla korekcji a(h_r) w środowisku miejskim
-def a_hr_urban(h_r):
-    return 3.2 * (math.log10(11.75 * h_r))**2 - 4.97
+# Połączenie ciphertext i tag
+ciphertext_with_tag = ciphertext + tag
 
-a_hr = a_hr_urban(h_r)  # Korekcja a(h_r) dla miast
+# Tworzenie instancji AES-GCM
+aesgcm = AESGCM(full_key)
 
-# PL dla miast (teren miejski)
-PL_urban_test = (
-    69.55 +
-    26.16 * math.log10(f_mhz) -
-    13.82 * math.log10(h_t) -
-    a_hr +
-    (44.9 - 6.55 * math.log10(h_t)) * math.log10(d_km)
-)
+# Odszyfrowywaprint(f"IV: {iv.hex()}")
+print(f"IV: {iv.hex()}")
+print(f"Full Key: {full_key.hex()}")
+print(f"Ciphertext: {ciphertext.hex()}")
+print(f"Tag: {tag.hex()}")
+plaintext = aesgcm.decrypt(iv, ciphertext_with_tag, None)
+print("Odszyfrowane dane:", plaintext.decode('utf-8'))
 
-# PL dla terenów podmiejskich
-PL_suburban_test = PL_urban_test - 2 * (math.log10(f_mhz / 28))**2 - 5.4
-
-# PL dla terenów wiejskich
-PL_rural_test = PL_urban_test - 4.78 * (math.log10(f_mhz))**2 + 18.33 * math.log10(f_mhz) - 40.94
-
-# Wynik
-print(PL_urban_test, PL_suburban_test, PL_rural_test)

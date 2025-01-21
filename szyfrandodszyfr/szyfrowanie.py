@@ -124,4 +124,4 @@ def client_program(host: str, port: int, data: bytes):
 if __name__ == "__main__":
     while True:
         data = input("Podaj dane do zaszyfrowania: ").encode('utf-8')
-        client_program("192.168.1.3", 2137, data)
+        client_program("192.168.1.4", 8080, data)
