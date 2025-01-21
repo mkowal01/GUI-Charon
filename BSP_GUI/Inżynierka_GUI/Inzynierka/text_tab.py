@@ -245,7 +245,7 @@ class TextTab(QWidget):
             connect_tab = self.parent_window.connect_tab
 
             if connect_tab.connection_type.currentText() == "Socket/WiFi/Ethernet":
-                connect_tab.sock.sendall(translated_command.encode('utf-8'))
+                connect_tab.sock.sendall(bytes(translated_command.encode('utf-8')))
                 debug_print("text_tab", f"Wysłano: {translated_command}")
             elif connect_tab.connection_type.currentText() == "LoRa":
                 connect_tab.serial_conn.write(translated_command.encode('utf-8'))
