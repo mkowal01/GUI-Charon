@@ -3,7 +3,7 @@ import time
 from datetime import datetime
 
 # Ustawienia gniazda (socket)
-SERVER_IP = '127.0.0.1'  # Adres IP serwera
+SERVER_IP = '192.168.1.7'  # Adres IP serwera
 SERVER_PORT = 12345       # Port serwera
 BUFFER_SIZE = 2048# Rozmiar bufora danych
 
