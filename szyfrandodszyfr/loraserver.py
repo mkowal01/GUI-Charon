@@ -1,4 +1,4 @@
-import socket
+import serial
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from os import urandom
 import json
@@ -46,23 +46,31 @@ def decrypt_data(message: bytes, json_file: str) -> str:
         str: Odszyfrowane dane w formacie tekstowym.
     """
     # Rozdzielenie wiadomości na składniki
-    debug_print("odszyfr",f"Odebrana wiadomość (raw): {message}")
+    model = message[0:1]
+    # index1 = message[2]  # Indeks pierwszej połowy klucza
+    # index2 = message[3]  # Indeks drugiej połowy klucza
+    # iv = message[4:24]  # IV (12 bajtów dla AES-GCM)
+    # ciphertext_length = len(message) - 16 - 16  # Długość całej wiadomości - IV - tag
+    # ciphertext = message[16:16 + ciphertext_length]
+    # tag = message[16 + ciphertext_length:]  # Ostatnie 16 bajtów
+    #6539d3a1bd85701eed755d2da102
     index1 = message[0]  # Indeks pierwszej połowy klucza
     index2 = message[1]  # Indeks drugiej połowy klucza
     iv = message[2:14]   # IV (12 bajtów dla AES-GCM)
-    tag = message[30:] # Tag (16 bajtów dla AES-GCM)
-    ciphertext = message[14:30]  # Zaszyfrowane dane
+    ciphertext_length = len(message) - 14 - 16  # Długość całej wiadomości - IV - tag
+    ciphertext = message[14:14 + ciphertext_length]
+    tag = message[14 + ciphertext_length:]  # Ostatnie 16 bajtów
 
-    debug_print("odszyfr",f"Indeks 1: {index1}")
-    debug_print("odszyfr",f"Indeks 2: {index2}")
-    debug_print("odszyfr",f"IV przed XOR: {iv.hex()}")
+    debug_print("odszyfr",f" [decrypt_data] Indeks 1: {index1}")
+    debug_print("odszyfr",f" [decrypt_data] Indeks 2: {index2}")
+    debug_print("odszyfr",f" [decrypt_data] IV przed XOR: {iv.hex()}")
 
     # XOR na IV z index2
     iv = xor_iv_with_index(iv, load_key_from_json(index2, "../charon_library/half_keys_indexed.json"))
-    debug_print("odszyfr",f"IV po XOR: {iv.hex()}")
+    debug_print("odszyfr",f" [decrypt_data] IV po XOR: {iv.hex()}")
+    debug_print("odszyfr",f" [decrypt_data] Indeks 1: {ciphertext}")
 
-    debug_print("odszyfr",f"Tag: {tag.hex()}")
-    debug_print("odszyfr",f"Zaszyfrowane dane: {ciphertext.hex()}")
+    debug_print("odszyfr",f" [decrypt_data] Tag: {tag.hex()}")
 
     # Ładowanie połówek klucza z pliku JSON
     key1 = load_key_from_json(index1, json_file)
@@ -70,7 +78,6 @@ def decrypt_data(message: bytes, json_file: str) -> str:
 
     # Połączenie klucza
     full_key = key1 + key2
-
     # Tworzenie instancji AES-GCM
     aesgcm = AESGCM(full_key)
 
@@ -82,41 +89,37 @@ def decrypt_data(message: bytes, json_file: str) -> str:
 
     return plaintext.decode("utf-8")
 
-def server_program(host: str, port: int, json_file: str):
+def server_program(port: str, baudrate: int, json_file: str):
     """
-    Funkcja uruchamia serwer nasłuchujący na podanym porcie, który deszyfruje wiadomości.
+    Funkcja uruchamia serwer nasłuchujący na porcie szeregowym, który deszyfruje wiadomości.
 
     Args:
-        host (str): Adres IP serwera.
-        port (int): Port serwera.
+        port (str): Port szeregowy, do którego podłączony jest moduł LoRa.
+        baudrate (int): Prędkość transmisji w bodach.
         json_file (str): Ścieżka do pliku JSON zawierającego połowy kluczy.
     """
-    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    server_socket.bind((host, port))
-    server_socket.listen(1)
-    debug_print("odszyfr",f"Serwer nasłuchuje na {host}:{port}")
+    import serial
 
     try:
-        while True:
-            conn, addr = server_socket.accept()
-            debug_print("odszyfr",f"Połączono z {addr}")
+        with serial.Serial(port, baudrate, timeout=1) as ser:
+            debug_print("odszyfr", f"Serwer nasłuchuje na porcie {port} z prędkością {baudrate}.")
 
-            encrypted_message = conn.recv(4096)
-            print("Otrzymano zaszyfrowaną wiadomość.")
-
-            try:
-                decrypted_data = decrypt_data(encrypted_message, json_file)
-                print("Odszyfrowane dane (tekst):", decrypted_data)
-                conn.sendall(b'ACK')
-            except Exception as e:
-                debug_print("odszyfr",f"Błąd podczas odszyfrowywania: {e}")
-                conn.sendall(f"Błąd: {e}".encode('utf-8'))
-
-            conn.close()
+            while True:
+                encrypted_message = ser.read(4096)
+                if encrypted_message:
+                    debug_print("odszyfr", f"Otrzymano zaszyfrowaną wiadomość. {encrypted_message.hex()}")
+                    try:
+                        decrypted_data = decrypt_data(encrypted_message, json_file)
+                        print("Odszyfrowane dane (tekst):", decrypted_data)
+                        ser.write(b'ACK')
+                    except Exception as e:
+                        debug_print("odszyfr", f"Błąd podczas odszyfrowywania: {e}")
+                        ser.write(f"Błąd: {e}".encode('utf-8'))
     except KeyboardInterrupt:
-        debug_print("odszyfr",f"Serwer został zatrzymany.")
-        server_socket.close()
+        debug_print("odszyfr", f"Serwer został zatrzymany.")
+    except Exception as e:
+        debug_print("odszyfr", f"Błąd serwera: {e}")
 
 if __name__ == "__main__":
     json_file_path = "../charon_library/half_keys_indexed.json"
-    server_program("192.168.1.3", 2137, json_file_path)
+    server_program("COM6", 9600, json_file_path)
