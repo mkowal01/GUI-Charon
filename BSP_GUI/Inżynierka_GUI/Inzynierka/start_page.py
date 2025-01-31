@@ -21,10 +21,30 @@ class StartPage(QWidget):
         logo_label.setPixmap(pixmap)
         logo_label.setAlignment(Qt.AlignCenter)
 
-        thanks_label = QLabel("Podziękowania dla promotora oraz dla ChatGPT za wsparcie w projekcie.")
-        thanks_label.setFont(QFont("Arial", 16))
-        thanks_label.setAlignment(Qt.AlignLeft)
-        thanks_label.setWordWrap(True)
+        thanks_label = QLabel()
+        thanks_label.setText("""
+            <p style="text-align: justify; font-family: Arial; font-size: 16px; font-style: italic; color: white; line-height: 1.6;">
+                Wyrażam serdeczne podziękowania dla naszego promotora, <br>
+                dr inż. kpt. Krzysztofa Górskiego, za nieocenione wsparcie, <br>
+                cierpliwość oraz cenne wskazówki, które umożliwiły nam <br>
+                realizację i ukończenie niniejszej pracy inżynierskiej. <br>
+                Jego wiedza, doświadczenie oraz zaangażowanie <br>
+                były dla nas niezwykle inspirujące i miały kluczowe <br>
+                znaczenie dla osiągnięcia wyznaczonych celów projektu.
+            </p>
+        """)
+        thanks_label.setFont(QFont("Arial", 16, QFont.StyleItalic, QFont.Bold))  # Czcionka kursywą
+        thanks_label.setAlignment(Qt.AlignRight | Qt.AlignCenter)  # Wyśrodkowanie pionowe, wyrównanie do prawej
+        thanks_label.setWordWrap(True)  # Zawijanie tekstu
+        thanks_label.setStyleSheet("""
+            QLabel {
+                color: white;            /* Kolor tekstu */
+                padding: 20px;           /* Odstęp wewnętrzny */
+                margin: 20px 0;          /* Odstęp od góry i dołu */
+                line-height: 1.6;        /* Zwiększenie odstępów między liniami */
+                max-width: 800px;        /* Ograniczenie szerokości tekstu */
+            }
+        """)
 
         horizontal_layout.addWidget(logo_label)
         horizontal_layout.addWidget(thanks_label)

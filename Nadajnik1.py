@@ -1,10 +1,8 @@
 import serial
-import binascii  # Do konwersji na HEX
 
 # Ustawienia portu szeregowego
 SERIAL_PORT = 'COM5'  # Port USB UART nadajnika
 BAUD_RATE = 9600
-
 
 def main():
     try:
@@ -14,21 +12,21 @@ def main():
         while True:
             # Wpisanie wiadomości
             message = input("Wpisz wiadomość do wysłania: ")
-
-            # Konwersja wiadomości na HEX
-            hex_message = binascii.hexlify(message.encode('utf-8')).decode('ascii')
-            ser.write((hex_message + "\n").encode('ascii'))  # Wyślij HEX zakończony '\n'
-            print(f"Wysłano (HEX): {hex_message}")
+            message_length = len(message)
+            byte_message = f"{message_length}|{message}|XXX".encode('utf-8')
+            print(byte_message)
+            ser.write(byte_message + b"\n")  # Wyślij wiadomość zakończoną '\n'
+            print(f"Wysłano (BYTE): {byte_message}")
 
             # Oczekiwanie na odpowiedź
-            response_hex = ""
-            while not response_hex:
+            response_bytes = b""
+            while not response_bytes:
                 if ser.in_waiting > 0:
-                    response_hex = ser.readline().decode('ascii', errors='ignore').strip()
+                    response_bytes = ser.readline().strip()
 
-            # Dekodowanie odpowiedzi z HEX
-            response_text = bytes.fromhex(response_hex).decode('utf-8', errors='ignore')
-            print(f"Otrzymano odpowiedź: {response_text} (HEX: {response_hex})")
+            # Dekodowanie odpowiedzi z bajtów
+            response_text = response_bytes.decode('utf-8', errors='ignore')
+            print(f"Otrzymano odpowiedź: {response_text} (BYTE: {response_bytes}) (len: {len(response_bytes)})")
 
     except serial.SerialException as e:
         print(f"Błąd portu szeregowego: {e}")

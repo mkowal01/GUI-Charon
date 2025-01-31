@@ -186,7 +186,7 @@ class ConnectTab(QWidget):
 
             # Ustawiamy domyślne wartości dla LoRa
             if not self.com_port_input.text():  # Jeśli pole COM jest puste
-                self.com_port_input.setText("COM8")
+                self.com_port_input.setText("COM5")
             if not self.baud_rate_input.text():  # Jeśli pole Baud Rate jest puste
                 self.baud_rate_input.setText("9600")
         else:

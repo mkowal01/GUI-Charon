@@ -4,6 +4,8 @@ Audio = True
 Localization = True
 Connect = True
 Main = True
+Lora = True
+video_distribution = True
 
 def debug_print(filname, message):
     if DEBUG:
@@ -17,3 +19,7 @@ def debug_print(filname, message):
             print(f"\033[31m\033[1m[DEBUG]\033[0m\033[35m[{filname}] \033[0m {message}")
         if filname == "connection_tab" and Connect is True:
             print(f"\033[31m\033[1m[DEBUG]\033[0m\033[36m[{filname}  ] \033[0m {message}")
+        if filname == "loralibery" and Lora is True:
+            print(f"\033[31m\033[1m[DEBUG]\033[0m\033[37m[{filname}      ] \033[0m {message}")
+        if filname == "video_distribution" and video_distribution is True:
+            print(f"\033[31m\033[1m[DEBUG]\033[0m\033[38m[{filname}      ] \033[0m {message}")

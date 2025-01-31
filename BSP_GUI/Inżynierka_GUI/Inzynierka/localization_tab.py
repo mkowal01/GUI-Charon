@@ -48,6 +48,7 @@ class LocalizationTab(QWidget):
         self.response_thread = None
         self.previous_coordinates = None
         self.previous_time = None
+        self.target_coordinates = None  # Współrzędne punktu docelowego
         self.gps_positions = []  # Dodanie brakującej listy gps_positions
 
         self.grid_layout = QGridLayout()
@@ -67,7 +68,7 @@ class LocalizationTab(QWidget):
 
         self.logs_widget = QTextEdit()
         self.logs_widget.setReadOnly(True)
-        self.logs_widget.setFont(QFont("Arial", 10))
+        self.logs_widget.setFont(QFont("Arial", 22, QFont.Bold))
         self.logs_widget.setPlaceholderText("Logi będą wyświetlane tutaj...")
         self.logs_widget.setStyleSheet(
             "background-color: #1E1E1E; color: white; border: 2px solid #6a5f31; border-radius: 10px; padding: 5px;")
@@ -77,59 +78,67 @@ class LocalizationTab(QWidget):
         button_size = QSizePolicy.Expanding
         button_style = (
             "QPushButton {"
-            "    background-color: #1E1E1E; color: white; border: 2px solid #6a5f31; border-radius: 10px; padding: 5px;"
+            "    background-color: #1E1E1E; color: white; border: 2px solid #6a5f31; border-radius: 10px; padding: 5px; text-align: center;"
             "}"
             "QPushButton:hover {"
             "    background-color: #6a5f31; color: black;"
             "}"
         )
 
-        self.start_button = QPushButton("Start")
-        self.start_button.setSizePolicy(button_size, button_size)
-        self.start_button.setStyleSheet(button_style)
-        self.start_button.clicked.connect(self.handle_start_button)
-        self.grid_layout.addWidget(self.start_button, 0, 6, 1, 1)
-
-        self.stop_button = QPushButton("Stop")
-        self.stop_button.setSizePolicy(button_size, button_size)
-        self.stop_button.setStyleSheet(button_style)
-        self.stop_button.clicked.connect(self.stop_response_thread)
-        self.grid_layout.addWidget(self.stop_button, 1, 6, 1, 1)
+        # self.start_button = QPushButton("Start")
+        # self.start_button.setSizePolicy(button_size, button_size)
+        # self.start_button.setStyleSheet(button_style)
+        # self.start_button.clicked.connect(self.handle_start_button)
+        # self.grid_layout.addWidget(self.start_button, 0, 6, 1, 1)
+        #
+        # self.stop_button = QPushButton("Stop")
+        # self.stop_button.setSizePolicy(button_size, button_size)
+        # self.stop_button.setStyleSheet(button_style)
+        # self.stop_button.clicked.connect(self.stop_response_thread)
+        # self.grid_layout.addWidget(self.stop_button, 1, 6, 1, 1)
 
         self.longitude_input = QLineEdit()
-        self.longitude_input.setPlaceholderText("Długość geograficzna")
+        self.longitude_input.setPlaceholderText("Dł. geograficzna")
+        self.longitude_input.setFont(QFont("Arial", 12, QFont.Bold))
+        self.longitude_input.setAlignment(Qt.AlignCenter)
         self.longitude_input.setSizePolicy(button_size, button_size)
         self.longitude_input.setStyleSheet(
             "background-color: #1E1E1E; color: white; border: 2px solid #6a5f31; border-radius: 10px; padding: 5px;")
         self.grid_layout.addWidget(self.longitude_input, 2, 6, 1, 1)
 
         self.latitude_input = QLineEdit()
-        self.latitude_input.setPlaceholderText("Szerokość geograficzna")
+        self.latitude_input.setPlaceholderText("Szer. geograficzna")
+        self.latitude_input.setFont(QFont("Arial", 12, QFont.Bold))
         self.latitude_input.setSizePolicy(button_size, button_size)
         self.latitude_input.setStyleSheet(
             "background-color: #1E1E1E; color: white; border: 2px solid #6a5f31; border-radius: 10px; padding: 5px;")
         self.grid_layout.addWidget(self.latitude_input, 3, 6, 1, 1)
 
-        self.set_coordinates_button = QPushButton("Wyznacz koordynaty")
+        self.set_coordinates_button = QPushButton("Wyznacz\nkoordynaty")
         self.set_coordinates_button.setSizePolicy(button_size, button_size)
+        self.set_coordinates_button.setFont(QFont("Arial", 22, QFont.Bold))
         self.set_coordinates_button.setStyleSheet(button_style)
-        self.set_coordinates_button.clicked.connect(self.update_map)
+        self.set_coordinates_button.clicked.connect(self.set_target_coordinates)
         self.grid_layout.addWidget(self.set_coordinates_button, 4, 6, 1, 1)
 
         self.speed_display = QLineEdit()
         self.speed_display.setPlaceholderText("Prędkość")
+        self.speed_display.setFont(QFont("Arial", 22, QFont.Bold))
         self.speed_display.setReadOnly(True)
         self.speed_display.setSizePolicy(button_size, button_size)
         self.speed_display.setStyleSheet(
-            "background-color: #1E1E1E; color: white; border: 2px solid #6a5f31; border-radius: 10px; padding: 5px;")
+            "background-color: #1E1E1E; color: white; border: 2px solid #6a5f31; border-radius: 10px; padding: 5px; text-align: center;")
+        self.speed_display.setAlignment(Qt.AlignCenter)
         self.grid_layout.addWidget(self.speed_display, 5, 6, 1, 1)
 
         self.satellites_display = QLineEdit()
         self.satellites_display.setPlaceholderText("Satelity")
+        self.satellites_display.setFont(QFont("Arial", 22, QFont.Bold))
         self.satellites_display.setReadOnly(True)
         self.satellites_display.setSizePolicy(button_size, button_size)
         self.satellites_display.setStyleSheet(
-            "background-color: #1E1E1E; color: white; border: 2px solid #6a5f31; border-radius: 10px; padding: 5px;")
+            "background-color: #1E1E1E; color: white; border: 2px solid #6a5f31; border-radius: 10px; padding: 5px; ")
+        self.satellites_display.setAlignment(Qt.AlignCenter)
         self.grid_layout.addWidget(self.satellites_display, 6, 6, 1, 1)
 
         self.setLayout(self.grid_layout)
@@ -156,14 +165,38 @@ class LocalizationTab(QWidget):
     def update_map(self):
         debug_print("localization_tab", f"Rozpoczęcie aktualizacji mapy z pozycjami: {self.gps_positions}")
         try:
+            # Tworzenie mapy
             if self.gps_positions:
-                folium_map = folium.Map(location=self.gps_positions[-1], zoom_start=15)
+                # Ostatnia pozycja z logów (niebieski marker)
+                last_position = self.gps_positions[-1]
+                folium_map = folium.Map(location=last_position, zoom_start=15)
                 folium.PolyLine(self.gps_positions, color="blue", weight=2.5).add_to(folium_map)
-                folium.Marker(self.gps_positions[-1]).add_to(folium_map)
-                debug_print("localization_tab", f"Zaktualizowano mapę dla ostatniej pozycji: {self.gps_positions[-1]}")
+                folium.Marker(
+                    last_position,
+                    tooltip="Bieżąca lokalizacja",
+                    icon=folium.Icon(color="blue", icon="info-sign")
+                ).add_to(folium_map)
+                debug_print("localization_tab", f"Zaktualizowano mapę dla ostatniej pozycji: {last_position}")
             else:
                 folium_map = folium.Map(location=[52.2297, 21.0122], zoom_start=15)
                 debug_print("localization_tab", "Brak pozycji GPS, użyto domyślnych współrzędnych")
+
+            # Dodanie punktu docelowego (czerwony marker)
+            if self.target_coordinates:
+                folium.Marker(
+                    self.target_coordinates,
+                    tooltip="Punkt docelowy",
+                    icon=folium.Icon(color="red", icon="flag")
+                ).add_to(folium_map)
+                # Obliczanie odległości do punktu docelowego
+                if self.gps_positions:
+                    distance = geodesic(self.gps_positions[-1], self.target_coordinates).meters
+                    debug_print("localization_tab", f"Odległość do punktu docelowego: {distance:.2f} m")
+                    self.logs_widget.append(f"Odległość do punktu docelowego: {distance:.2f} m")
+                else:
+                    debug_print("localization_tab", "Brak bieżącej pozycji GPS do obliczenia odległości")
+
+            # Zapisanie mapy i aktualizacja widoku
             folium_map.save(self.map_file)
             debug_print("localization_tab", f"Mapa zapisana w pliku: {self.map_file}")
             self.map_view.setUrl(QUrl.fromLocalFile(self.map_file))
@@ -362,3 +395,14 @@ class LocalizationTab(QWidget):
         except Exception as e:
             debug_print("localization_tab", f"Błąd podczas obliczania prędkości: {e}")
             QMessageBox.critical(self, "Błąd", f"Nie udało się obliczyć prędkości: {e}")
+
+    def set_target_coordinates(self):
+        try:
+            latitude = float(self.latitude_input.text())
+            longitude = float(self.longitude_input.text())
+            self.target_coordinates = (latitude, longitude)
+            debug_print("localization_tab", f"Ustawiono punkt docelowy: {self.target_coordinates}")
+            self.logs_widget.append(f"Ustawiono punkt docelowy: Szerokość: {latitude}, Długość: {longitude}")
+            self.update_map()
+        except ValueError:
+            QMessageBox.warning(self, "Błąd", "Niepoprawne współrzędne. Wprowadź prawidłowe wartości szerokości i długości geograficznej.")

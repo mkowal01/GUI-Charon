@@ -1,7 +1,7 @@
+# -*- coding: utf-8 -*-
 import os
 import sys
-from PyQt5.QtWidgets import (QApplication, QMainWindow, QVBoxLayout, QLabel, QWidget, QHBoxLayout,
-                             QTabBar, QStackedWidget, QPushButton)
+from PyQt5.QtWidgets import (QApplication, QMainWindow, QVBoxLayout, QLabel, QWidget, QHBoxLayout, QTabBar, QStackedWidget, QPushButton)
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont
 
@@ -12,17 +12,21 @@ from localization_tab import LocalizationTab
 from manual_tab import ManualTab
 from about_tab import AboutTab
 from connect_tab import ConnectTab
+from video import VideoWidget
 from Debuger import debug_print
 
 class MainApp(QMainWindow):
     def __init__(self):
         super().__init__()
+
         debug_print("main_testowy2",f"MAIN_UI")
+
         # Ustawienia głównego okna
         self.setWindowFlags(Qt.FramelessWindowHint)
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setWindowTitle("Inżynierka")
         self.setGeometry(100, 100, 1200, 600)
+        self.setFixedHeight(800)
         self.last_tab_index = 0
 
         self.is_dark_mode = True  # Początkowy tryb ciemny
@@ -73,7 +77,7 @@ class MainApp(QMainWindow):
         self.header_widget.setLayout(self.header_layout)
 
         self.tab_bar = QTabBar()
-        self.tab_bar.setFont(QFont("Arial", 16))
+        self.tab_bar.setFont(QFont("Arial", 16, QFont.Bold))
         self.tab_bar.setFixedHeight(50)
         self.tab_bar.setMaximumWidth(1000)
         self.tab_bar.setStyleSheet(self.get_tab_bar_stylesheet())
@@ -94,6 +98,8 @@ class MainApp(QMainWindow):
         self.video_button.setStyleSheet(self.get_button_stylesheet())
         self.video_button.setVisible(False)
         self.header_layout.addWidget(self.video_button)
+        # Podłącz funkcję video_distribution do kliknięcia przycisku
+        self.video_button.clicked.connect(lambda: [self.video_distribution(), self.print_window_dimensions()])
 
         self.connect_button = QPushButton("POŁĄCZ")
         self.connect_button.setFont(QFont("Arial", 14))
@@ -108,14 +114,25 @@ class MainApp(QMainWindow):
         # Zawartość
         self.content_widget = QStackedWidget()
         self.start_page = StartPage(self)
-        self.content_widget.addWidget(self.start_page)
-        self.content_widget.addWidget(TextTab(self))
-        self.content_widget.addWidget(AudioTab(self))
-        self.content_widget.addWidget(LocalizationTab(self))
-        self.content_widget.addWidget(ManualTab())
-        self.content_widget.addWidget(AboutTab())
         self.connect_tab = ConnectTab(self)
-        self.content_widget.addWidget(self.connect_tab)
+        self.text_tab = TextTab(self)
+        self.audio_tab = AudioTab(self)
+        self.localization_tab = LocalizationTab(self)
+        self.manual_tab = ManualTab()
+        self.about_tab = AboutTab()
+
+        # Dodajemy je w odpowiedniej kolejności, przypisując indeksy ręcznie
+        self.content_widget.insertWidget(0, self.start_page)  # Index 0
+        self.content_widget.insertWidget(1, self.text_tab)  # Index 1
+        self.content_widget.insertWidget(2, self.audio_tab)  # Index 2
+        self.content_widget.insertWidget(3, self.localization_tab)  # Index 3
+        self.content_widget.insertWidget(4, self.manual_tab)  # Index 4
+        self.content_widget.insertWidget(5, self.about_tab)  # Index 5
+        self.content_widget.insertWidget(6, self.connect_tab)  # Index 6
+
+        # Ustawienie domyślnej zakładki (np. StartPage)
+        self.content_widget.setCurrentIndex(0)
+
         self.main_layout.addWidget(self.content_widget)
 
         # Ustawienia stylu aplikacji
@@ -244,9 +261,22 @@ class MainApp(QMainWindow):
         """
 
     def show_main_ui(self):
+        """
+        Ustawia widoczność elementów interfejsu, w tym paska zakładek i przycisków.
+        Sprawdza stan `video_mode_enabled`, aby kontrolować widoczność przycisku "VIDEO".
+        """
         self.tab_bar.setVisible(True)
-        self.video_button.setVisible(True)
         self.connect_button.setVisible(True)
+
+        # Kontrola widoczności przycisku "VIDEO" w zależności od stanu `video_mode_enabled`
+        if hasattr(self, 'video_mode_enabled') and self.video_mode_enabled:
+            self.video_button.setVisible(False)  # Ukryj, jeśli tryb wideo jest aktywny
+            debug_print("show_main_ui", "Tryb wideo jest aktywny. Przycisk 'VIDEO' ukryty.")
+        else:
+            self.video_button.setVisible(True)  # Pokaż, jeśli tryb wideo jest nieaktywny
+            debug_print("show_main_ui", "Tryb wideo nieaktywny. Przycisk 'VIDEO' widoczny.")
+
+        # Przywrócenie ostatniej zakładki
         self.content_widget.setCurrentIndex(self.last_tab_index + 1)
 
     def open_connect_tab(self):
@@ -291,6 +321,113 @@ class MainApp(QMainWindow):
     def update_connect_button(self, text):
         self.connect_button.setText(text)
         debug_print("main_testowy2",f"Przycisk 'Połącz' zmieniony na: {text}")
+
+    def video_distribution(self):
+        """
+        Przełącza między trybem wideo a wyłączeniem widżetu wideo,
+        dynamicznie zmieniając rozmiar okna.
+        """
+        if not hasattr(self, 'video_mode_enabled'):
+            self.video_mode_enabled = False  # Flaga: czy tryb wideo jest aktywny
+
+        if not self.video_mode_enabled:
+            # Włączenie trybu wideo
+            debug_print("video_distribution", "Włączanie trybu wideo.")
+
+            # Rozszerzenie okna
+            self.setGeometry(
+                self.geometry().x(),
+                self.geometry().y(),
+                1600,  # Nowa szerokość
+                self.geometry().height()  # Wysokość pozostaje bez zmian
+            )
+
+            # Tworzenie widżetu wideo, jeśli jeszcze nie istnieje
+            if not hasattr(self, 'video_widget'):
+                from video import VideoWidget
+                self.video_widget = VideoWidget(self)
+
+            # Dodanie widżetu wideo
+            if not hasattr(self, 'content_container'):
+                self.content_container = QHBoxLayout()
+                self.content_container.setContentsMargins(20, 20, 20, 20)
+
+                # Dodanie zawartości zakładek
+                self.tabs_content_widget = QWidget()
+                self.tabs_content_widget.setLayout(self.content_widget.layout())
+                self.tabs_content_widget.setFixedWidth(1200)
+                self.tabs_content_widget.setFixedHeight(
+                    self.geometry().height() - self.title_bar.height() - self.tab_bar.height() - 40
+                )
+                self.content_container.addWidget(self.tabs_content_widget)
+
+                # Dodanie widżetu wideo
+                self.video_widget.setFixedSize(400, self.tabs_content_widget.height())
+                self.content_container.addWidget(self.video_widget)
+
+                # Umieszczenie układu
+                self.main_layout.insertLayout(2, self.content_container)
+
+            # Ukrycie przycisku "VIDEO"
+            self.video_button.setVisible(False)
+
+            # Ustawienie flagi
+            self.video_mode_enabled = True
+
+        else:
+            # Wyłączenie trybu wideo
+            debug_print("video_distribution", "Wyłączanie trybu wideo.")
+
+            # Usunięcie widżetu wideo i układu
+            if hasattr(self, 'content_container'):
+                # Usuń widżet wideo z układu
+                if self.video_widget in self.content_container:
+                    self.content_container.removeWidget(self.video_widget)
+                    self.video_widget.setParent(None)
+                    self.video_widget.deleteLater()
+                    self.video_widget = None
+
+                # Usuń układ poziomy
+                self.main_layout.removeItem(self.content_container)
+                self.content_container.deleteLater()
+                self.content_container = None
+
+            # Przywrócenie pierwotnych wymiarów okna
+            self.setGeometry(
+                self.geometry().x(),
+                self.geometry().y(),
+                1200,  # Przywracamy szerokość
+                self.geometry().height()  # Wysokość pozostaje bez zmian
+            )
+
+            # Przywrócenie widoczności przycisku "VIDEO"
+            self.video_button.setVisible(True)
+
+            # Ustawienie flagi
+            self.video_mode_enabled = False
+
+        # Debugowanie stanu flagi
+        debug_print("video_distribution", f"Stan video_mode_enabled: {self.video_mode_enabled}")
+
+    def print_window_dimensions(self):
+        """
+        Funkcja wyświetlająca aktualne wymiary okna oraz wymiary widżetu VideoWidget w terminalu.
+        """
+        # Wymiary całego okna
+        current_geometry = self.geometry()
+        width = current_geometry.width()
+        height = current_geometry.height()
+        print(f"Aktualne wymiary okna: szerokość = {width}px, wysokość = {height}px")
+
+        # Wymiary widżetu VideoWidget (jeśli istnieje)
+        if hasattr(self, 'video_widget'):
+            video_geometry = self.video_widget.geometry()
+            video_width = video_geometry.width()
+            video_height = video_geometry.height()
+            print(f"Wymiary VideoWidget: szerokość = {video_width}px, wysokość = {video_height}px")
+        else:
+            print("VideoWidget jeszcze nie został utworzony.")
+
 
 if __name__ == "__main__":
     app = QApplication(sys.argv)

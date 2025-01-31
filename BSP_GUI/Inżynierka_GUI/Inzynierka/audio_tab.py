@@ -6,6 +6,7 @@ from translatepy import Translate
 import wave
 import pyaudio
 from Debuger import debug_print
+from loralibery import encrypt_data, decrypt_data
 
 class PlaybackThread(QThread):
     playback_finished = pyqtSignal()  # Sygnał zakończenia odtwarzania
@@ -53,6 +54,7 @@ class AudioTab(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self.parent_window = parent
+        self.connect_tab = self.parent_window.connect_tab  # Referencja do ConnectTab
         debug_print("audio_tab", f"Inicjalizacja AudioTab")
 
         # Inicjalizacja obiektu Translate
@@ -65,14 +67,14 @@ class AudioTab(QWidget):
 
         # Pole do wpisywania tekstu (0,0) do (1,1)
         self.text_input = QTextEdit()
-        self.text_input.setFont(QFont("Arial", 16))
+        self.text_input.setFont(QFont("Arial", 22, QFont.Bold))
         self.text_input.setPlaceholderText("Pole do wpisania tekstu")
         self.text_input.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.grid_layout.addWidget(self.text_input, 0, 0, 2, 4)
 
         # Pole do wyświetlania tłumaczenia (2,0) do (3,1)
         self.translation_display = QTextEdit()
-        self.translation_display.setFont(QFont("Arial", 16))
+        self.translation_display.setFont(QFont("Arial", 22, QFont.Bold))
         self.translation_display.setReadOnly(True)
         self.translation_display.setPlaceholderText("Tutaj pojawi się tłumaczenie...")
         self.translation_display.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -96,13 +98,13 @@ class AudioTab(QWidget):
 
         # Label statusu nagrywania
         self.recording_status_label = QLabel("Brak audio")  # Domyślny napis
-        self.recording_status_label.setFont(QFont("Arial", 14))
+        self.recording_status_label.setFont(QFont("Arial", 22, QFont.Bold))
         self.recording_status_label.setAlignment(Qt.AlignCenter)
         self.grid_layout.addWidget(self.recording_status_label, 4, 1, 1, 1)
 
         # Etykieta czasu nagrania
         self.time_label = QLabel("00:00")  # Domyślny czas
-        self.time_label.setFont(QFont("Arial", 14))
+        self.time_label.setFont(QFont("Arial", 22, QFont.Bold))
         self.time_label.setAlignment(Qt.AlignCenter)
         self.grid_layout.addWidget(self.time_label, 4, 2, 1, 1)
 
@@ -132,7 +134,7 @@ class AudioTab(QWidget):
         self.frames = []
         self.stream = None
         self.audio_interface = pyaudio.PyAudio()
-        self.output_file = "recording.wav"
+        self.output_file = "recording.mp3"
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_time)
         self.current_time = 0
@@ -143,8 +145,8 @@ class AudioTab(QWidget):
 
         # Wybór języka (0,4)
         self.language_selector = QComboBox()
-        self.language_selector.setFont(QFont("Arial", 12))
-        self.language_selector.setFixedHeight(111)
+        self.language_selector.setFont(QFont("Arial", 22, QFont.Bold))
+        self.language_selector.setFixedHeight(125)
         self.language_selector.addItems([
             "Polski", "Angielski", "Niemiecki", "Francuski", "Hiszpański",
             "Ukraiński", "Rosyjski", "Włoski", "Szwedzki", "Norweski"
@@ -156,14 +158,14 @@ class AudioTab(QWidget):
 
         # Przycisk "Wyczyść" (1,4)
         self.clear_button = QPushButton("Wyczyść")
-        self.clear_button.setFont(QFont("Arial", 12))
+        self.clear_button.setFont(QFont("Arial", 22, QFont.Bold))
         self.clear_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.clear_button.clicked.connect(self.clear_text)
         self.grid_layout.addWidget(self.clear_button, 1, 4, 1, 2)
 
         # Przycisk "Wyślij" (2,4)
         self.send_button = QPushButton("Wyślij")
-        self.send_button.setFont(QFont("Arial", 12, QFont.Bold))
+        self.send_button.setFont(QFont("Arial", 22, QFont.Bold))
         self.send_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.send_button.clicked.connect(self.send_translated_command)
         self.grid_layout.addWidget(self.send_button, 2, 4, 1, 2)
@@ -174,14 +176,14 @@ class AudioTab(QWidget):
 
         # Gotowe zwroty
         phrases = [
-            "PODĄŻAJ\nZA MNĄ", "STÓJ", "LEĆ W GÓRĘ", "LEĆ W DÓŁ",
+            "PODĄŻAJ ZA MNĄ", "STÓJ", "LEĆ W GÓRĘ", "LEĆ W DÓŁ",
             "OBRÓĆ W LEWO", "OBRÓĆ W PRAWO", "START", "LĄDUJ",
             "AUTOMATYCZNY", "MANUALNY"
         ]
         row, col = 0, 6
         for phrase in phrases:
             phrase_button = QPushButton(phrase)
-            phrase_button.setFont(QFont("Arial", 24))
+            phrase_button.setFont(QFont("Arial", 22, QFont.Bold))
             phrase_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
             phrase_button.clicked.connect(lambda _, ph=phrase: self.send_translated_phrase(ph))
             self.grid_layout.addWidget(phrase_button, row, col, 1, 2)
@@ -194,6 +196,8 @@ class AudioTab(QWidget):
         self.update_styles()
 
         self.setLayout(self.grid_layout)
+        self.connect_tab.connection_type.currentIndexChanged.connect(self.update_button_availability)
+        self.update_button_availability()
 
     def update_styles(self):
         """Aktualizuje style w zależności od trybu aplikacji."""
@@ -221,6 +225,7 @@ class AudioTab(QWidget):
         self.language_selector.setStyleSheet(f"""
             QComboBox {{
                 background-color: {background_color};
+                height: 150px;
                 color: {text_color};
                 border: 2px solid {border_color};
                 border-radius: 10px;
@@ -478,12 +483,33 @@ class AudioTab(QWidget):
             translation = self.translator.translate(command, target_language)
             translated_command = "AU " + translation.result
 
+            # Szyfrowanie komendy z prefiksem "TX"
+            # encrypted_command = encrypt_data(translated_command.encode('utf-8'), json_file)
+            encrypted_data, index1, index2, iv, tag = encrypt_data(translated_command.encode('utf-8'))
+            message = (index1.to_bytes(1, 'little') +
+                     index2.to_bytes(1, 'big') +
+                     iv +
+                     encrypted_data +
+                     tag)
+            # Wysyłanie danych przez socket lub LoRę
+            connect_tab = self.parent_window.connect_tab
+            response = None
+
             if connect_tab.connection_type.currentText() == "Socket/WiFi/Ethernet":
-                connect_tab.sock.sendall(translated_command.encode('utf-8'))
-                debug_print("audio_tab", f"Wysłano: {translated_command}")
+                connect_tab.sock.sendall(message)
+                debug_print("audio_tab", f"Wysłano: {message}")
+
+                # Oczekiwanie na odpowiedź
+                connect_tab.sock.settimeout(5)  # Timeout na 5 sekund
+                response = connect_tab.sock.recv(1024)  # Odbiór do 1024 bajtów
+                self.handle_server_response(response)
             elif connect_tab.connection_type.currentText() == "LoRa":
-                connect_tab.serial_conn.write(translated_command.encode('utf-8'))
-                debug_print("audio_tab", f"Wysłano przez LoRa: {translated_command}")
+                connect_tab.serial_conn.write(message)
+                debug_print("audio_tab", f"Wysłano przez LoRa: {message}")
+
+                # Oczekiwanie na odpowiedź (dla LoRy trzeba odpowiednio skonfigurować)
+                response = connect_tab.serial_conn.read_until(b'\n')  # Przykład: oczekiwanie na dane zakończone znakiem nowej linii
+                self.handle_server_response(response)
 
         except Exception as e:
             QMessageBox.critical(self, "Błąd", f"Nie udało się wysłać komendy: {e}")
@@ -542,14 +568,36 @@ class AudioTab(QWidget):
                 self.send_command(f"AU_FILE:{file_name}:{file_size}")
                 debug_print("audio_tab", f"Metadane pliku wysłane: AU_FILE:{file_name}:{file_size}")
 
+                # Szyfrowanie komendy z prefiksem "TX"
+                # encrypted_command = encrypt_data(translated_command.encode('utf-8'), json_file)
+                encrypted_data, index1, index2, iv, tag = encrypt_data(send_command.encode('utf-8'))
+                message = (index1.to_bytes(1, 'little') +
+                           index2.to_bytes(1, 'big') +
+                           iv +
+                           encrypted_data +
+                           tag)
+                # Wysyłanie danych przez socket lub LoRę
+                connect_tab = self.parent_window.connect_tab
+                response = None
+
                 # Wysyłanie pliku w porcjach
                 with open(self.output_file, "rb") as audio_file:
                     while chunk := audio_file.read(1024):
                         if connect_tab.connection_type.currentText() == "Socket/WiFi/Ethernet":
-                            connect_tab.sock.sendall(chunk)
+                            connect_tab.sock.sendall(message)
+
+                            # Oczekiwanie na odpowiedź
+                            connect_tab.sock.settimeout(5)  # Timeout na 5 sekund
+                            response = connect_tab.sock.recv(1024)  # Odbiór do 1024 bajtów
+                            self.handle_server_response(response)
+                            debug_print("text_tab", f"Otrzymano odpowiedź z serwera: {response}")
                         elif connect_tab.connection_type.currentText() == "LoRa":
-                            connect_tab.serial_conn.write(chunk)
-                        debug_print("audio_tab", f"Wysłano porcję danych: {len(chunk)} bajtów")
+                            connect_tab.serial_conn.write(message)
+
+                            # Oczekiwanie na odpowiedź (dla LoRy trzeba odpowiednio skonfigurować)
+                            response = connect_tab.serial_conn.read_until(b'\n')  # Przykład: oczekiwanie na dane zakończone znakiem nowej linii
+                            self.handle_server_response(response)
+                        debug_print("audio_tab", f"Wysłano porcję danych: {len(message)} bajtów")
 
                 QMessageBox.information(self, "Sukces", "Plik audio został wysłany.")
                 debug_print("audio_tab", f"Wysyłanie pliku zakończone pomyślnie.")
@@ -557,3 +605,46 @@ class AudioTab(QWidget):
                 QMessageBox.warning(self, "Błąd", "Plik audio nie istnieje. Nagrywaj dźwięk przed wysłaniem.")
         except Exception as e:
             QMessageBox.critical(self, "Błąd", f"Nie udało się wysłać danych: {e}")
+
+    def handle_server_response(self, response: bytes):
+        """
+        Obsługuje odpowiedź z serwera, dekodując ją i wyświetlając w logach.
+
+        Args:
+            response (bytes): Odebrane dane z serwera.
+        """
+        try:
+            # Rozpakowanie wiadomości (zakładamy format zgodny z funkcją szyfrowania)
+            index1 = response[0]
+            index2 = response[1]
+            iv = response[2:14]  # 12 bajtów IV
+            tag = response[-16:]  # Ostatnie 16 bajtów to tag
+            encrypted_data = response[14:-16]  # Reszta to dane
+
+            # Dekodowanie wiadomości
+            decrypted_message = decrypt_data(encrypted_data, index1, index2, iv, tag)
+            debug_print("text_tab", f"Otrzymano i odszyfrowano wiadomość: {decrypted_message}")
+
+            # Przekazanie do logów LocalizationTab
+            if hasattr(self.parent_window, 'localization_tab'):
+                self.parent_window.localization_tab.update_logs(decrypted_message)
+                debug_print("text_tab", "Przekazano odszyfrowaną wiadomość do LocalizationTab.")
+            else:
+                debug_print("text_tab", "Nie znaleziono LocalizationTab w parent_window.")
+        except Exception as e:
+            debug_print("text_tab", f"Błąd podczas obsługi odpowiedzi: {e}")
+
+    def update_button_availability(self):
+        """Aktualizuje stan przycisków w zależności od wybranego typu połączenia."""
+        if self.connect_tab.connection_type.currentText() == "LoRa":
+            # Zablokowanie przycisków, jeśli wybrano LoRa
+            self.record_button.setEnabled(False)
+            self.play_button.setEnabled(False)
+            self.stop_button.setEnabled(False)
+            self.delete_button.setEnabled(False)
+        else:
+            # Odblokowanie przycisków dla połączenia Socket/WiFi/Ethernet
+            self.record_button.setEnabled(True)
+            self.play_button.setEnabled(True)
+            self.stop_button.setEnabled(True)
+            self.delete_button.setEnabled(True)

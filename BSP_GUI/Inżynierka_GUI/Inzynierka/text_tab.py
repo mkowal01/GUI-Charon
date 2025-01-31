@@ -3,6 +3,10 @@ from PyQt5.QtGui import QFont
 from PyQt5.QtCore import Qt
 from translatepy import Translate
 from Debuger import debug_print
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from os import urandom
+import json
+from loralibery import encrypt_data, decrypt_data
 
 
 class TextTab(QWidget):
@@ -28,7 +32,7 @@ class TextTab(QWidget):
         # Wstawienie pola do wpisywania tekstu (0,0)
         debug_print("text_tab", f"Tworzenie pola do wpisywania tekstu")
         self.text_input = QTextEdit()
-        self.text_input.setFont(QFont("Arial", 16))
+        self.text_input.setFont(QFont("Arial", 22, QFont.Bold))
         self.text_input.setPlaceholderText("Pole do wpisania tekstu")
         self.text_input.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.grid_layout.addWidget(self.text_input, 0, 0, 3, 2)  # rowspan=3, colspan=2
@@ -36,7 +40,7 @@ class TextTab(QWidget):
         # Wstawienie listy wyboru języka (0,2)
         debug_print("text_tab", f"Tworzenie listy wyboru języka")
         self.language_selector = QComboBox()
-        self.language_selector.setFont(QFont("Arial", 12))
+        self.language_selector.setFont(QFont("Arial", 22, QFont.Bold))
         self.language_selector.addItems([
             "Polski", "Angielski", "Niemiecki", "Francuski", "Hiszpański",
             "Ukraiński", "Rosyjski", "Włoski", "Szwedzki", "Norweski"
@@ -49,7 +53,7 @@ class TextTab(QWidget):
         # Pole do wyświetlania tłumaczenia (0,3 - 2,4)
         debug_print("text_tab", f"Tworzenie pola do wyświetlania tłumaczenia")
         self.translation_display = QTextEdit()
-        self.translation_display.setFont(QFont("Arial", 16))
+        self.translation_display.setFont(QFont("Arial", 22, QFont.Bold))
         self.translation_display.setReadOnly(True)
         self.translation_display.setPlaceholderText("Tutaj pojawi się tłumaczenie...")
         self.translation_display.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -58,7 +62,7 @@ class TextTab(QWidget):
         # Dodanie przycisku "Wyczyść" (1,2)
         debug_print("text_tab", f"Tworzenie przycisku 'Wyczyść'")
         self.clear_button = QPushButton("Wyczyść")
-        self.clear_button.setFont(QFont("Arial", 12))
+        self.clear_button.setFont(QFont("Arial", 22, QFont.Bold))
         self.clear_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.clear_button.clicked.connect(self.clear_text)
         self.grid_layout.addWidget(self.clear_button, 1, 2, 1, 1)
@@ -76,7 +80,7 @@ class TextTab(QWidget):
         row, col = 3, 0
         for command in self.commands:
             button = QPushButton(command)
-            button.setFont(QFont("Arial", 10))
+            button.setFont(QFont("Arial", 22, QFont.Bold))
             button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
             button.clicked.connect(lambda _, cmd=command: self.send_command(cmd))
             self.command_buttons.append(button)
@@ -88,7 +92,7 @@ class TextTab(QWidget):
 
         # Dodanie przycisku "WYŚLIJ" (2,2)
         send_button = QPushButton("WYŚLIJ")
-        send_button.setFont(QFont("Arial", 12, QFont.Bold))
+        send_button.setFont(QFont("Arial", 22, QFont.Bold))
         send_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         send_button.clicked.connect(self.send_text_to_server)
         self.grid_layout.addWidget(send_button, 2, 2)
@@ -193,7 +197,10 @@ class TextTab(QWidget):
         return True
 
     def send_text_to_server(self):
-        """Wysyła przetłumaczony tekst lub tekst użytkownika na serwer."""
+        """
+        Wysyła zaszyfrowany tekst na serwer z "TX" i indeksami kluczy.
+        Obsługuje zarówno sockety, jak i LoRę.
+        """
         if not self.is_connected():
             return
 
@@ -209,19 +216,60 @@ class TextTab(QWidget):
             return
 
         try:
+            # Ścieżka do pliku JSON z połówkami kluczy
+            json_file = "half_keys_indexed.json"
+
+            # Sprawdzenie istnienia pliku
+            import os
+            if not os.path.exists(json_file):
+                QMessageBox.critical(self, "Błąd wysyłania", f"Plik kluczy {json_file} nie istnieje.")
+                return
+
+            # Szyfrowanie komendy z prefiksem "TX"
+            # encrypted_command = encrypt_data(translated_command.encode('utf-8'), json_file)
+            encrypted_data, index1, index2, iv, tag = encrypt_data(command.encode('utf-8'))
+            message = (index1.to_bytes(1, 'little') +
+                       index2.to_bytes(1, 'big') +
+                       iv +
+                       encrypted_data +
+                       tag)
+            # Wysyłanie danych przez socket lub LoRę
             connect_tab = self.parent_window.connect_tab
+            response = ""
+
             if connect_tab.connection_type.currentText() == "Socket/WiFi/Ethernet":
-                connect_tab.sock.sendall(command.encode('utf-8'))
-                debug_print("text_tab", f"Wysłano: {command}")
+                connect_tab.sock.sendall(message)
+                debug_print("text_tab", f"Wysłano zaszyfrowaną wiadomość przez socket: {message}")
+
+                # Oczekiwanie na odpowiedź
+                connect_tab.sock.settimeout(5)  # Timeout na 5 sekund
+                response = connect_tab.sock.recv(1024)  # Odbiór do 1024 bajtów
+                self.handle_server_response(response)
+                debug_print("text_tab", f"Otrzymano odpowiedź z serwera: {response}")
+
             elif connect_tab.connection_type.currentText() == "LoRa":
-                connect_tab.serial_conn.write(command.encode('utf-8'))
-                debug_print("text_tab", f"Wysłano przez LoRa: {command}")
+                connect_tab.serial_conn.write(message)
+                debug_print("text_tab", f"Wysłano zaszyfrowaną wiadomość przez LoRę: {message}")
+
+                # Oczekiwanie na odpowiedź (dla LoRy trzeba odpowiednio skonfigurować)
+                response = connect_tab.serial_conn.read_until( b'\n')  # Przykład: oczekiwanie na dane zakończone znakiem nowej linii
+                self.handle_server_response(response)
+                debug_print("text_tab", f"Otrzymano odpowiedź przez LoRę: {response}")
+            else:
+                QMessageBox.warning(self, "Błąd", "Niewłaściwy typ połączenia.")
         except Exception as e:
-            QMessageBox.critical(self, "Błąd wysyłania", f"Nie udało się wysłać: {e}")
+            QMessageBox.critical(self, "Błąd wysyłania", f"Nie udało się wysłać wiadomości: {e}")
 
     def send_command(self, command):
-        """Wysyła wybraną komendę bezpośrednio."""
+        """
+        Wysyła wybraną komendę zaszyfrowaną z "TX" i indeksami kluczy.
+        Obsługuje zarówno sockety, jak i LoRę.
+        """
         if not self.is_connected():
+            return
+
+        if not command:
+            QMessageBox.warning(self, "Błąd", "Komenda jest pusta. Nie można jej wysłać.")
             return
 
         target_language_map = {
@@ -242,14 +290,48 @@ class TextTab(QWidget):
         try:
             translation = self.translator.translate(command, target_language)
             translated_command = "TX " + translation.result
+
+            # Ścieżka do pliku JSON z połówkami kluczy
+            json_file = "half_keys_indexed.json"
+
+            # Sprawdzenie istnienia pliku
+            import os
+            if not os.path.exists(json_file):
+                QMessageBox.critical(self, "Błąd wysyłania", f"Plik kluczy {json_file} nie istnieje.")
+                return
+
+            # Szyfrowanie komendy z prefiksem "TX"
+            # encrypted_command = encrypt_data(translated_command.encode('utf-8'), json_file)
+            encrypted_data, index1, index2, iv, tag = encrypt_data(translated_command.encode('utf-8'))
+            message = (index1.to_bytes(1, 'little') +
+                       index2.to_bytes(1, 'big') +
+                       iv +
+                       encrypted_data +
+                       tag)
+            # Wysyłanie danych przez socket lub LoRę
             connect_tab = self.parent_window.connect_tab
+            response = None
 
             if connect_tab.connection_type.currentText() == "Socket/WiFi/Ethernet":
-                connect_tab.sock.sendall(bytes(translated_command.encode('utf-8')))
-                debug_print("text_tab", f"Wysłano: {translated_command}")
+                connect_tab.sock.sendall(message)
+                debug_print("text_tab", f"Wysłano zaszyfrowaną komendę przez socket: {message.hex()}")
+
+                # Oczekiwanie na odpowiedź
+                connect_tab.sock.settimeout(5)  # Timeout na 5 sekund
+                response = connect_tab.sock.recv(1024)  # Odbiór do 1024 bajtów
+                self.handle_server_response(response)
+                debug_print("text_tab", f"Otrzymano odpowiedź z serwera: {response}")
+
             elif connect_tab.connection_type.currentText() == "LoRa":
-                connect_tab.serial_conn.write(translated_command.encode('utf-8'))
-                debug_print("text_tab", f"Wysłano przez LoRa: {translated_command}")
+                connect_tab.serial_conn.write(message)
+                debug_print("text_tab", f"Wysłano zaszyfrowaną komendę przez LoRę: {message.hex()}")
+
+                # Oczekiwanie na odpowiedź (dla LoRy trzeba odpowiednio skonfigurować)
+                response = connect_tab.serial_conn.read_until(b'\n')  # Przykład: oczekiwanie na dane zakończone znakiem nowej linii
+                self.handle_server_response(response)
+                debug_print("text_tab", f"Otrzymano odpowiedź przez LoRę: {response}")
+            else:
+                QMessageBox.warning(self, "Błąd", "Niewłaściwy typ połączenia.")
         except Exception as e:
             QMessageBox.critical(self, "Błąd wysyłania", f"Nie udało się wysłać komendy: {e}")
 
@@ -267,3 +349,31 @@ class TextTab(QWidget):
             if col > 4:
                 col = 0
                 row += 1
+
+    def handle_server_response(self, response: bytes):
+        """
+        Obsługuje odpowiedź z serwera, dekodując ją i wyświetlając w logach.
+
+        Args:
+            response (bytes): Odebrane dane z serwera.
+        """
+        try:
+            # Rozpakowanie wiadomości (zakładamy format zgodny z funkcją szyfrowania)
+            index1 = response[0]
+            index2 = response[1]
+            iv = response[2:14]  # 12 bajtów IV
+            tag = response[-16:]  # Ostatnie 16 bajtów to tag
+            encrypted_data = response[14:-16]  # Reszta to dane
+
+            # Dekodowanie wiadomości
+            decrypted_message = decrypt_data(encrypted_data, index1, index2, iv, tag)
+            debug_print("text_tab", f"Otrzymano i odszyfrowano wiadomość: {decrypted_message}")
+
+            # Przekazanie do logów LocalizationTab
+            if hasattr(self.parent_window, 'localization_tab'):
+                self.parent_window.localization_tab.update_logs(decrypted_message)
+                debug_print("text_tab", "Przekazano odszyfrowaną wiadomość do LocalizationTab.")
+            else:
+                debug_print("text_tab", "Nie znaleziono LocalizationTab w parent_window.")
+        except Exception as e:
+            debug_print("text_tab", f"Błąd podczas obsługi odpowiedzi: {e}")
