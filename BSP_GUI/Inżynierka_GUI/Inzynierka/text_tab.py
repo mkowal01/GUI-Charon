@@ -62,16 +62,14 @@ class TextTab(QWidget):
         # Dodanie przycisku "Wyczyść" (1,2)
         debug_print("text_tab", f"Tworzenie przycisku 'Wyczyść'")
         self.clear_button = QPushButton("Wyczyść")
-        self.clear_button.setFont(QFont("Arial", 22, QFont.Bold))
+        self.clear_button.setFont(QFont("Arial", 15, QFont.Bold))
         self.clear_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         self.clear_button.clicked.connect(self.clear_text)
         self.grid_layout.addWidget(self.clear_button, 1, 2, 1, 1)
 
         # Lista komend
         self.commands = [
-            "PODĄŻAJ ZA MNĄ", "STÓJ", "LEĆ W GÓRĘ", "LEĆ W DÓŁ",
-            "OBRÓĆ W LEWO", "OBRÓĆ W PRAWO", "START", "LĄDUJ",
-            "AUTOMATYCZNY", "MANUALNY"
+            "PODDAJ SIĘ", "RZUĆ BROŃ", "NIE STRZELAJ", "POMOC W DRODZE", "ZAKAZ WSTĘPU", "UWAGA!!!", "ZOSTAŃ W DOMU", "ZAGROŻENIE", "OPUŚĆ TEREN", "EWAKUACJA"
         ]
 
         self.command_buttons = []  # Przechowywanie referencji do przycisków
@@ -80,7 +78,7 @@ class TextTab(QWidget):
         row, col = 3, 0
         for command in self.commands:
             button = QPushButton(command)
-            button.setFont(QFont("Arial", 22, QFont.Bold))
+            button.setFont(QFont("Arial", 18, QFont.Bold))
             button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
             button.clicked.connect(lambda _, cmd=command: self.send_command(cmd))
             self.command_buttons.append(button)
@@ -92,7 +90,7 @@ class TextTab(QWidget):
 
         # Dodanie przycisku "WYŚLIJ" (2,2)
         send_button = QPushButton("WYŚLIJ")
-        send_button.setFont(QFont("Arial", 22, QFont.Bold))
+        send_button.setFont(QFont("Arial", 18, QFont.Bold))
         send_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
         send_button.clicked.connect(self.send_text_to_server)
         self.grid_layout.addWidget(send_button, 2, 2)

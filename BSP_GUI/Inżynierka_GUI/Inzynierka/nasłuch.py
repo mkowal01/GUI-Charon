@@ -1,20 +1,27 @@
 import socket
 import threading
 import time
-from datetime import datetime
+import os
 
-# Przykładowe dane GPS
-GPS_DATA = [
-    "Czas: 07:01:04.051 | Pozycja: Szeroko\u015b\u0107: 51.15993266666667, D\u0142ugo\u015b\u0107: 17.137928166666665 | Liczba widocznych satelit\u00f3w: 09",
-    "Czas: 07:01:07.078 | Pozycja: Szeroko\u015b\u0107: 51.159932, D\u0142ugo\u015b\u0107: 17.1379305 | Liczba widocznych satelit\u00f3w: 06",
-    "Czas: 07:01:10.098 | Pozycja: Szeroko\u015b\u0107: 51.159934, D\u0142ugo\u015b\u0107: 17.1379355 | Liczba widocznych satelit\u00f3w: 05",
-    "Czas: 07:01:13.156 | Pozycja: Szeroko\u015b\u0107: 51.159933333333335, D\u0142ugo\u015b\u0107: 17.137939 | Liczba widocznych satelit\u00f3w: 02",
-    "Czas: 07:01:16.202 | Pozycja: Szeroko\u015b\u0107: 51.1599345, D\u0142ugo\u015b\u0107: 17.137940666666665 | Liczba widocznych satelit\u00f3w: 05",
-    "Czas: 07:01:19.239 | Pozycja: Szeroko\u015b\u0107: 51.159926166666665, D\u0142ugo\u015b\u0107: 17.137950166666666 | Liczba widocznych satelit\u00f3w: 05",
-    "Czas: 07:01:22.299 | Pozycja: Szeroko\u015b\u0107: 51.159922333333334, D\u0142ugo\u015b\u0107: 17.137953666666668 | Liczba widocznych satelit\u00f3w: 05",
-    "Czas: 07:01:25.397 | Pozycja: Szeroko\u015b\u0107: 51.1599205, D\u0142ugo\u015b\u0107: 17.137956166666665 | Liczba widocznych satelit\u00f3w: 05",
-    "Czas: 07:01:28.492 | Pozycja: Szeroko\u015b\u0107: 51.159929, D\u0142ugo\u015b\u0107: 17.137955666666667 | Liczba widocznych satelit\u00f3w: 02"
-]
+# Tworzenie katalogu do zapisu plików audio
+RECORDING_DIR = "recording"
+os.makedirs(RECORDING_DIR, exist_ok=True)
+
+
+def receive_file(client_socket, filename):
+    """Odbiera plik MP3 od klienta i zapisuje go jako plik binarny."""
+    filepath = os.path.join(RECORDING_DIR, filename)
+    print(f"[SERVER] Odbieranie pliku {filename}...")
+
+    with open(filepath, "wb") as file:
+        while True:
+            data = client_socket.recv(4096)
+            if not data:
+                break
+            file.write(data)
+
+    print(f"[SERVER] Plik zapisany jako '{filepath}'.")
+
 
 def server_mode(port):
     """Uruchamia tryb serwera."""
@@ -26,51 +33,78 @@ def server_mode(port):
     def handle_client(client_socket, address):
         print(f"[SERVER] Połączono z {address}")
         try:
-            send_loc_responses = False
+            file_path = None
+            file_size = None
+            received_bytes = 0
+            file = None
 
             while True:
+                # Odbieramy pierwszą wiadomość jako UTF-8 (komendę AU_FILE)
                 data = client_socket.recv(1024)
                 if not data:
                     break
 
-                message = data.decode('utf-8').strip()
-                print(f"[SERVER] Odebrano od {address}: {message}")
+                try:
+                    decoded_data = data.decode("utf-8").strip()
+                    print(f"[SERVER] Odebrano od {address}: {decoded_data}")
 
-                if message == "LOC":
-                    print(f"[SERVER] Otrzymano polecenie LOC od {address}. Wysyłanie danych GPS...")
-                    send_loc_responses = True
+                    if decoded_data.startswith("AU_FILE"):
+                        # Parsowanie nazwy pliku i rozmiaru
+                        _, filename, file_size = decoded_data.split(":")
+                        file_size = int(file_size)
+                        file_path = os.path.join(RECORDING_DIR, filename)
+                        print(f"[SERVER] Oczekiwanie na plik audio: {filename} ({file_size} bajtów)")
 
-                    # Wysyłanie danych GPS w osobnym wątku
-                    def send_responses():
-                        index = 0
-                        while send_loc_responses:
-                            try:
-                                current_data = GPS_DATA[index % len(GPS_DATA)]
-                                client_socket.sendall(f"{current_data}\n".encode('utf-8'))
-                                print(f"[SERVER] Wysłano do {address}: {current_data}")
-                                index += 1
-                                time.sleep(1)  # Wysyłaj co sekundę
-                            except (ConnectionResetError, BrokenPipeError):
-                                print(f"[SERVER] Połączenie z {address} zostało przerwane.")
-                                break
+                        # Otwieramy plik do zapisu
+                        file = open(file_path, "wb")
+                        received_bytes = 0
 
-                    threading.Thread(target=send_responses, daemon=True).start()
+                        # Odpowiedź do klienta
+                        client_socket.sendall("READY".encode("utf-8"))
+                        continue  # Przechodzimy do odbioru pliku
 
-                else:
-                    client_socket.sendall("Wiadomość odebrana.\n".encode('utf-8'))
-                    print(f"[SERVER] Wysłano odpowiedź do {address}: Wiadomość odebrana.")
+                except UnicodeDecodeError:
+                    # Jeśli nie można zdekodować danych, traktujemy je jako binarne
+                    if file:
+                        file.write(data)
+                        received_bytes += len(data)
+                        print(f"[SERVER] Otrzymano {received_bytes}/{file_size} bajtów")
+
+                        # Zamykamy plik, gdy cały plik zostanie przesłany
+                        if received_bytes >= file_size:
+                            print(f"[SERVER] Plik zapisany jako '{file_path}'")
+                            file.close()
+                            file = None
+                            client_socket.sendall("FILE_RECEIVED".encode("utf-8"))
+                            break  # Kończymy po otrzymaniu całego pliku
+
+            print(f"[SERVER] Rozłączono z {address}")
 
         except ConnectionResetError:
             print(f"[SERVER] Połączenie z {address} zostało przerwane.")
         finally:
-            print(f"[SERVER] Rozłączono z {address}")
-            send_loc_responses = False
+            if file:
+                file.close()
             client_socket.close()
 
     while True:
         client_socket, address = server_socket.accept()
         client_thread = threading.Thread(target=handle_client, args=(client_socket, address))
         client_thread.start()
+
+
+def send_file(client_socket, filename):
+    """Wysyła plik MP3 do serwera."""
+    try:
+        with open(filename, "rb") as file:
+            client_socket.sendall(f"SEND_MP3 {os.path.basename(filename)}".encode('utf-8'))
+            time.sleep(1)  # Krótka przerwa, aby uniknąć kolizji danych
+            while chunk := file.read(4096):
+                client_socket.sendall(chunk)
+        print(f"[CLIENT] Wysłano plik audio: {filename}")
+    except FileNotFoundError:
+        print(f"[CLIENT] Plik {filename} nie istnieje.")
+
 
 def client_mode(ip, port):
     """Uruchamia tryb klienta."""
@@ -84,20 +118,25 @@ def client_mode(ip, port):
 
     try:
         while True:
-            message = input("[CLIENT] Wpisz wiadomość (lub 'exit' aby zakończyć): ")
+            message = input("[CLIENT] Wpisz wiadomość ('exit' aby zakończyć, 'send_mp3 {nazwa}' aby wysłać plik MP3): ")
             if message.lower() == 'exit':
                 break
-            client_socket.send(message.encode('utf-8'))
-            response = client_socket.recv(1024).decode('utf-8')
-            print(f"[CLIENT] Odpowiedź serwera: {response}")
+            elif message.startswith("send_mp3"):
+                _, filename = message.split(" ", 1)
+                send_file(client_socket, filename)
+            else:
+                client_socket.send(message.encode('utf-8'))
+                response = client_socket.recv(1024).decode('utf-8')
+                print(f"[CLIENT] Odpowiedź serwera: {response}")
     except ConnectionResetError:
         print("[CLIENT] Połączenie z serwerem zostało przerwane.")
     finally:
         client_socket.close()
         print("[CLIENT] Rozłączono.")
 
+
 if __name__ == "__main__":
-    print("=== Aplikacja do testowania Wi-Fi ===")
+    print("=== Aplikacja do przesyłania plików audio MP3 ===")
     mode = input("Wybierz tryb (server/client): ").strip().lower()
 
     if mode == "server":

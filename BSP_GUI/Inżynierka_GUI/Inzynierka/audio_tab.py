@@ -176,14 +176,12 @@ class AudioTab(QWidget):
 
         # Gotowe zwroty
         phrases = [
-            "PODĄŻAJ ZA MNĄ", "STÓJ", "LEĆ W GÓRĘ", "LEĆ W DÓŁ",
-            "OBRÓĆ W LEWO", "OBRÓĆ W PRAWO", "START", "LĄDUJ",
-            "AUTOMATYCZNY", "MANUALNY"
+            "PODDAJ SIĘ", "RZUĆ BROŃ", "NIE STRZELAJ", "POMOC W DRODZE", "ZAKAZ WSTĘPU", "UWAGA!!!", "ZOSTAŃ W DOMU", "ZAGROŻENIE", "OPUŚĆ TEREN", "EWAKUACJA"
         ]
         row, col = 0, 6
         for phrase in phrases:
             phrase_button = QPushButton(phrase)
-            phrase_button.setFont(QFont("Arial", 22, QFont.Bold))
+            phrase_button.setFont(QFont("Arial", 18, QFont.Bold))
             phrase_button.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
             phrase_button.clicked.connect(lambda _, ph=phrase: self.send_translated_phrase(ph))
             self.grid_layout.addWidget(phrase_button, row, col, 1, 2)
@@ -457,63 +455,6 @@ class AudioTab(QWidget):
             return False
         return True
 
-    def send_command(self, command):
-        """
-        Wysyła wybraną komendę do serwera, jeśli połączenie jest aktywne.
-        """
-        if not self.is_connected():
-            return
-
-        connect_tab = self.parent_window.connect_tab
-        try:
-            target_language_map = {
-                "Polski": "pl",
-                "Angielski": "en",
-                "Niemiecki": "de",
-                "Francuski": "fr",
-                "Hiszpański": "es",
-                "Ukraiński": "uk",
-                "Rosyjski": "ru",
-                "Włoski": "it",
-                "Szwedzki": "sv",
-                "Norweski": "no"
-            }
-            target_language = target_language_map.get(self.language_selector.currentText(), "pl")
-
-            translation = self.translator.translate(command, target_language)
-            translated_command = "AU " + translation.result
-
-            # Szyfrowanie komendy z prefiksem "TX"
-            # encrypted_command = encrypt_data(translated_command.encode('utf-8'), json_file)
-            encrypted_data, index1, index2, iv, tag = encrypt_data(translated_command.encode('utf-8'))
-            message = (index1.to_bytes(1, 'little') +
-                     index2.to_bytes(1, 'big') +
-                     iv +
-                     encrypted_data +
-                     tag)
-            # Wysyłanie danych przez socket lub LoRę
-            connect_tab = self.parent_window.connect_tab
-            response = None
-
-            if connect_tab.connection_type.currentText() == "Socket/WiFi/Ethernet":
-                connect_tab.sock.sendall(message)
-                debug_print("audio_tab", f"Wysłano: {message}")
-
-                # Oczekiwanie na odpowiedź
-                connect_tab.sock.settimeout(5)  # Timeout na 5 sekund
-                response = connect_tab.sock.recv(1024)  # Odbiór do 1024 bajtów
-                self.handle_server_response(response)
-            elif connect_tab.connection_type.currentText() == "LoRa":
-                connect_tab.serial_conn.write(message)
-                debug_print("audio_tab", f"Wysłano przez LoRa: {message}")
-
-                # Oczekiwanie na odpowiedź (dla LoRy trzeba odpowiednio skonfigurować)
-                response = connect_tab.serial_conn.read_until(b'\n')  # Przykład: oczekiwanie na dane zakończone znakiem nowej linii
-                self.handle_server_response(response)
-
-        except Exception as e:
-            QMessageBox.critical(self, "Błąd", f"Nie udało się wysłać komendy: {e}")
-
     def send_translated_phrase(self, phrase):
         """
         Tłumaczy i wysyła wybraną frazę w odpowiednim języku, jeśli połączenie jest aktywne.
@@ -553,8 +494,8 @@ class AudioTab(QWidget):
 
         translated_text = self.translation_display.toPlainText().strip()
         user_text = self.text_input.toPlainText().strip()
-
         connect_tab = self.parent_window.connect_tab
+
         try:
             if translated_text:
                 self.send_command(translated_text)
@@ -564,47 +505,97 @@ class AudioTab(QWidget):
                 file_name = os.path.basename(self.output_file)
                 file_size = os.path.getsize(self.output_file)
 
-                # Wyślij metadane pliku
-                self.send_command(f"AU_FILE:{file_name}:{file_size}")
-                debug_print("audio_tab", f"Metadane pliku wysłane: AU_FILE:{file_name}:{file_size}")
+                # Wysyłanie metadanych pliku BEZ tłumaczenia i szyfrowania
+                au_file_command = f"AU_FILE :{file_name}:{file_size}"
+                debug_print("audio_tab", f"Wysyłanie metadanych: {au_file_command}")
+                if connect_tab.connection_type.currentText() == "Socket/WiFi/Ethernet":
+                    connect_tab.sock.sendall(au_file_command.encode())
+                elif connect_tab.connection_type.currentText() == "LoRa":
+                    connect_tab.serial_conn.write(au_file_command.encode())
 
-                # Szyfrowanie komendy z prefiksem "TX"
-                # encrypted_command = encrypt_data(translated_command.encode('utf-8'), json_file)
-                encrypted_data, index1, index2, iv, tag = encrypt_data(send_command.encode('utf-8'))
-                message = (index1.to_bytes(1, 'little') +
-                           index2.to_bytes(1, 'big') +
-                           iv +
-                           encrypted_data +
-                           tag)
-                # Wysyłanie danych przez socket lub LoRę
-                connect_tab = self.parent_window.connect_tab
-                response = None
-
-                # Wysyłanie pliku w porcjach
+                # Wysyłanie pliku audio w surowych bajtach, BEZ szyfrowania
                 with open(self.output_file, "rb") as audio_file:
-                    while chunk := audio_file.read(1024):
+                    for chunk in iter(lambda: audio_file.read(1024), b""):
+                        if not chunk:
+                            break
+
+                        debug_print("audio_tab", f"Odczytano fragment: {chunk[:10]}...")
+
+                        # Wysyłanie danych przez socket lub LoRę
                         if connect_tab.connection_type.currentText() == "Socket/WiFi/Ethernet":
-                            connect_tab.sock.sendall(message)
-
-                            # Oczekiwanie na odpowiedź
-                            connect_tab.sock.settimeout(5)  # Timeout na 5 sekund
-                            response = connect_tab.sock.recv(1024)  # Odbiór do 1024 bajtów
-                            self.handle_server_response(response)
-                            debug_print("text_tab", f"Otrzymano odpowiedź z serwera: {response}")
+                            connect_tab.sock.sendall(chunk)
                         elif connect_tab.connection_type.currentText() == "LoRa":
-                            connect_tab.serial_conn.write(message)
+                            connect_tab.serial_conn.write(chunk)
 
-                            # Oczekiwanie na odpowiedź (dla LoRy trzeba odpowiednio skonfigurować)
-                            response = connect_tab.serial_conn.read_until(b'\n')  # Przykład: oczekiwanie na dane zakończone znakiem nowej linii
-                            self.handle_server_response(response)
-                        debug_print("audio_tab", f"Wysłano porcję danych: {len(message)} bajtów")
+                        debug_print("audio_tab", f"Wysłano porcję danych: {len(chunk)} bajtów")
 
                 QMessageBox.information(self, "Sukces", "Plik audio został wysłany.")
-                debug_print("audio_tab", f"Wysyłanie pliku zakończone pomyślnie.")
+                debug_print("audio_tab", "Wysyłanie pliku zakończone pomyślnie.")
             else:
                 QMessageBox.warning(self, "Błąd", "Plik audio nie istnieje. Nagrywaj dźwięk przed wysłaniem.")
         except Exception as e:
+            debug_print("audio_tab", f"Błąd podczas wysyłania: {e}")
             QMessageBox.critical(self, "Błąd", f"Nie udało się wysłać danych: {e}")
+
+    def send_command(self, command):
+        """
+        Wysyła wybraną komendę do serwera, jeśli połączenie jest aktywne.
+        """
+        if not self.is_connected():
+            return
+
+        connect_tab = self.parent_window.connect_tab
+        try:
+            target_language_map = {
+                "Polski": "pl",
+                "Angielski": "en",
+                "Niemiecki": "de",
+                "Francuski": "fr",
+                "Hiszpański": "es",
+                "Ukraiński": "uk",
+                "Rosyjski": "ru",
+                "Włoski": "it",
+                "Szwedzki": "sv",
+                "Norweski": "no"
+            }
+            # Pobierz kod języka na podstawie wybranego tekstu
+            target_language = target_language_map.get(self.language_selector.currentText(), "pl")
+
+            # Przetłumacz komendę na wybrany język
+            translation = self.translator.translate(command, target_language)
+            # Dodaj do wyniku prefiks "AU " oraz kod języka
+            translated_command = f"AU {target_language} " + translation.result
+
+            # Szyfrowanie komendy (prefiks "TX" był tylko przykładowo wspomniany w komentarzu)
+            encrypted_data, index1, index2, iv, tag = encrypt_data(translated_command.encode('utf-8'))
+            message = (index1.to_bytes(1, 'little') +
+                       index2.to_bytes(1, 'big') +
+                       iv +
+                       encrypted_data +
+                       tag)
+
+            # Wysyłanie danych przez socket lub LoRę
+            response = None
+
+            if connect_tab.connection_type.currentText() == "Socket/WiFi/Ethernet":
+                connect_tab.sock.sendall(message)
+                debug_print("audio_tab", f"Wysłano: {message}")
+
+                # Oczekiwanie na odpowiedź
+                connect_tab.sock.settimeout(5)  # Timeout na 5 sekund
+                response = connect_tab.sock.recv(1024)  # Odbiór do 1024 bajtów
+                self.handle_server_response(response)
+            elif connect_tab.connection_type.currentText() == "LoRa":
+                connect_tab.serial_conn.write(message)
+                debug_print("audio_tab", f"Wysłano przez LoRa: {message}")
+
+                # Oczekiwanie na odpowiedź (dla LoRy trzeba odpowiednio skonfigurować)
+                response = connect_tab.serial_conn.read_until(
+                    b'\n')  # Przykład: oczekiwanie na dane zakończone znakiem nowej linii
+                self.handle_server_response(response)
+
+        except Exception as e:
+            QMessageBox.critical(self, "Błąd", f"Nie udało się wysłać komendy: {e}")
 
     def handle_server_response(self, response: bytes):
         """

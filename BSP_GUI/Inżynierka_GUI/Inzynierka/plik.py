@@ -1087,81 +1087,142 @@
 #                 speed = distance / time_delta
 #                 self.speed_display.setText(f"{speed:.2f} m/s")
 #         self.previous_time = datetime.strptime(timestamp, "%H:%M:%S.%f")
-import serial
-import serial.tools.list_ports
-import time
-import threading
+# import serial
+# import serial.tools.list_ports
+# import time
+# import threading
+#
+# COM_PORT = "COM4"  # Symulowany port LoRa
+# BAUD_RATE = 9600
+# STOP_EMULATOR = False  # Flaga zatrzymania emulatora
+#
+# def is_com_available(port):
+#     """Sprawdza, czy COM jest dostępny."""
+#     ports = [p.device for p in serial.tools.list_ports.comports()]
+#     return port in ports
+#
+# def fake_lora_device():
+#     """Emulator LoRa na COM8 bez blokowania portu."""
+#     global STOP_EMULATOR
+#     print(f"🎯 Emulator LoRa działa na {COM_PORT} @ {BAUD_RATE} baud")
+#
+#     while not STOP_EMULATOR:
+#         try:
+#             # Sprawdzamy, czy port jest dostępny
+#             if not is_com_available(COM_PORT):
+#                 print(f"⚠️ Port {COM_PORT} nie jest dostępny! Czekam...")
+#                 time.sleep(2)
+#                 continue
+#
+#             # Otwieramy port na chwilę, aby nie blokować
+#             with serial.Serial(COM_PORT, BAUD_RATE, timeout=1) as ser:
+#                 if ser.in_waiting:
+#                     received_data = ser.readline().decode("utf-8").strip()
+#                     print(f"📩 Otrzymano: {received_data}")
+#
+#                     # Symulowana odpowiedź LoRa
+#                     if received_data == "PING":
+#                         response = "PONG\n"
+#                     elif received_data.startswith("DATA:"):
+#                         response = f"ACK:{received_data[5:]}\n"
+#                     else:
+#                         response = "ERROR: Unknown command\n"
+#
+#                     time.sleep(0.2)  # Symulacja czasu przetwarzania
+#                     ser.write(response.encode("utf-8"))
+#                     print(f"📤 Wysłano: {response.strip()}")
+#
+#         except serial.SerialException as e:
+#             print(f"❌ Błąd dostępu do {COM_PORT}: {e}")
+#
+#         time.sleep(0.5)  # Krótka pauza, aby inny program mógł używać portu
+#
+# if __name__ == "__main__":
+#     # Uruchamiamy emulator w tle
+#     emulator_thread = threading.Thread(target=fake_lora_device, daemon=True)
+#     emulator_thread.start()
+#
+#     try:
+#         while True:
+#             cmd = input("💻 Wpisz komendę do wysłania (PING, DATA:123, exit): ")
+#             if cmd.lower() == "exit":
+#                 STOP_EMULATOR = True
+#                 break
+#
+#             try:
+#                 if not is_com_available(COM_PORT):
+#                     print(f"⚠️ Port {COM_PORT} nie jest dostępny!")
+#                     continue
+#
+#                 with serial.Serial(COM_PORT, BAUD_RATE, timeout=1) as ser:
+#                     ser.write(f"{cmd}\n".encode("utf-8"))
+#                     time.sleep(0.5)  # Czekamy na odpowiedź
+#                     response = ser.readline().decode("utf-8").strip()
+#                     print(f"💡 Odpowiedź z LoRa: {response}")
+#             except serial.SerialException as e:
+#                 print(f"❌ Błąd przy wysyłaniu danych: {e}")
+#
+#     except KeyboardInterrupt:
+#         STOP_EMULATOR = True  # Zatrzymanie emulatora
+#         print("🔴 Emulator zatrzymany.")
+import sys
+import cv2
+import numpy as np
+from PyQt5.QtWidgets import QApplication, QLabel, QWidget, QVBoxLayout, QPushButton
+from PyQt5.QtGui import QImage, QPixmap
+from PyQt5.QtCore import QTimer
 
-COM_PORT = "COM4"  # Symulowany port LoRa
-BAUD_RATE = 9600
-STOP_EMULATOR = False  # Flaga zatrzymania emulatora
 
-def is_com_available(port):
-    """Sprawdza, czy COM jest dostępny."""
-    ports = [p.device for p in serial.tools.list_ports.comports()]
-    return port in ports
+class DJIStreamApp(QWidget):
+    def __init__(self):
+        super().__init__()
+        self.initUI()
 
-def fake_lora_device():
-    """Emulator LoRa na COM8 bez blokowania portu."""
-    global STOP_EMULATOR
-    print(f"🎯 Emulator LoRa działa na {COM_PORT} @ {BAUD_RATE} baud")
-
-    while not STOP_EMULATOR:
-        try:
-            # Sprawdzamy, czy port jest dostępny
-            if not is_com_available(COM_PORT):
-                print(f"⚠️ Port {COM_PORT} nie jest dostępny! Czekam...")
-                time.sleep(2)
-                continue
-
-            # Otwieramy port na chwilę, aby nie blokować
-            with serial.Serial(COM_PORT, BAUD_RATE, timeout=1) as ser:
-                if ser.in_waiting:
-                    received_data = ser.readline().decode("utf-8").strip()
-                    print(f"📩 Otrzymano: {received_data}")
-
-                    # Symulowana odpowiedź LoRa
-                    if received_data == "PING":
-                        response = "PONG\n"
-                    elif received_data.startswith("DATA:"):
-                        response = f"ACK:{received_data[5:]}\n"
-                    else:
-                        response = "ERROR: Unknown command\n"
-
-                    time.sleep(0.2)  # Symulacja czasu przetwarzania
-                    ser.write(response.encode("utf-8"))
-                    print(f"📤 Wysłano: {response.strip()}")
-
-        except serial.SerialException as e:
-            print(f"❌ Błąd dostępu do {COM_PORT}: {e}")
-
-        time.sleep(0.5)  # Krótka pauza, aby inny program mógł używać portu
-
-if __name__ == "__main__":
-    # Uruchamiamy emulator w tle
-    emulator_thread = threading.Thread(target=fake_lora_device, daemon=True)
-    emulator_thread.start()
-
-    try:
-        while True:
-            cmd = input("💻 Wpisz komendę do wysłania (PING, DATA:123, exit): ")
-            if cmd.lower() == "exit":
-                STOP_EMULATOR = True
+        # Sprawdź poprawny indeks kamery
+        for i in range(5):  # Sprawdź do 5 indeksów kamer
+            self.cap = cv2.VideoCapture(i)
+            if self.cap.isOpened():
+                print(f"Połączono z kamerą o indeksie {i}")
                 break
+        else:
+            print("Nie można otworzyć strumienia wideo. Sprawdź połączenie USB.")
+            sys.exit()
 
-            try:
-                if not is_com_available(COM_PORT):
-                    print(f"⚠️ Port {COM_PORT} nie jest dostępny!")
-                    continue
+        self.timer = QTimer(self)
+        self.timer.timeout.connect(self.update_frame)
+        self.timer.start(30)  # Odświeżanie co 30 ms
 
-                with serial.Serial(COM_PORT, BAUD_RATE, timeout=1) as ser:
-                    ser.write(f"{cmd}\n".encode("utf-8"))
-                    time.sleep(0.5)  # Czekamy na odpowiedź
-                    response = ser.readline().decode("utf-8").strip()
-                    print(f"💡 Odpowiedź z LoRa: {response}")
-            except serial.SerialException as e:
-                print(f"❌ Błąd przy wysyłaniu danych: {e}")
+    def initUI(self):
+        self.setWindowTitle('DJI Goggles 2 - Podgląd')
+        self.setGeometry(100, 100, 800, 600)
 
-    except KeyboardInterrupt:
-        STOP_EMULATOR = True  # Zatrzymanie emulatora
-        print("🔴 Emulator zatrzymany.")
+        self.video_label = QLabel(self)
+        self.video_label.setFixedSize(800, 600)
+
+        self.quit_button = QPushButton('Zamknij', self)
+        self.quit_button.clicked.connect(self.close)
+
+        layout = QVBoxLayout()
+        layout.addWidget(self.video_label)
+        layout.addWidget(self.quit_button)
+        self.setLayout(layout)
+
+    def update_frame(self):
+        ret, frame = self.cap.read()
+        if ret:
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            height, width, channel = frame.shape
+            bytes_per_line = channel * width
+            q_img = QImage(frame.data, width, height, bytes_per_line, QImage.Format_RGB888)
+            self.video_label.setPixmap(QPixmap.fromImage(q_img))
+
+    def closeEvent(self, event):
+        self.cap.release()
+        event.accept()
+
+
+if __name__ == '__main__':
+    app = QApplication(sys.argv)
+    window = DJIStreamApp()
+    window.show()
+    sys.exit(app.exec_())

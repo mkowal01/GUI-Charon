@@ -25,7 +25,7 @@ class MainApp(QMainWindow):
         self.setWindowFlags(Qt.FramelessWindowHint)
         self.setAttribute(Qt.WA_TranslucentBackground)
         self.setWindowTitle("Inżynierka")
-        self.setGeometry(100, 100, 1200, 600)
+        self.setGeometry(30, 100, 800, 600)
         self.setFixedHeight(800)
         self.last_tab_index = 0
 
@@ -362,7 +362,7 @@ class MainApp(QMainWindow):
                 self.content_container.addWidget(self.tabs_content_widget)
 
                 # Dodanie widżetu wideo
-                self.video_widget.setFixedSize(400, self.tabs_content_widget.height())
+                self.video_widget.setFixedSize(600, self.tabs_content_widget.height())
                 self.content_container.addWidget(self.video_widget)
 
                 # Umieszczenie układu
